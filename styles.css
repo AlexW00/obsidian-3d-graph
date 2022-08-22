@@ -1,8 +1,6 @@
-/*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
+.scene-tooltip {
+	color: var(--text-primary);
+	background: var(--background-primary);
+	border: var(--background-modifier-border) 1px solid;
+	padding: 3px;
+}
