@@ -73,7 +73,7 @@ export class ForceGraph {
 	}
 
 	private createLinks = () => {
-		this.instance.linkWidth((link: Link) => this.highlightedLinks.has(link) ? 4 : 1)
+		this.instance.linkWidth((link: Link) => this.highlightedLinks.has(link) ? 8 : 6)
 			.linkDirectionalParticles((link: Link) => this.highlightedLinks.has(link) ? 4 : 0)
 			.linkDirectionalParticleWidth(4)
 			.onLinkHover(this.onLinkHover);
