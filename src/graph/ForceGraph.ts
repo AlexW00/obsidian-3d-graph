@@ -31,22 +31,13 @@ export class ForceGraph {
 			.nodeLabel((node: Node) => node.name)
 			.nodeRelSize(4)
 			.backgroundColor(options.backgroundColor ? options.backgroundColor : "#00000000")
+			.height(rootHtmlElement.innerWidth)
+			.width(rootHtmlElement.innerWidth)
 
 		this.createNodes();
 		this.createLinks();
-		this.createForces();
 	}
 
-	private createForces = () => {
-		this.instance.d3Force("charge", d3.forceManyBody().strength((node) => {
-			return node.val
-		}))
-			.d3Force("collide", d3.forceCollide().radius((node) => {
-				console.log(node)
-				return Math.max(node.val, 25)
-			}))
-			.d3Force("center", d3.forceCenter(0,0))
-	}
 
 	private createNodes = () => {
 		this.instance

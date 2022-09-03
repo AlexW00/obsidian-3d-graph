@@ -28,7 +28,7 @@ export default class Node {
 
 	addNeighbor(neighbor: Node) {
 		this.neighbors.push(neighbor);
-		this.val = this.val + 1;
+		//this.val = this.val + 1;
 	}
 
 	addLink(link: Link) {
