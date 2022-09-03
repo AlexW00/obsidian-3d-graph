@@ -2,8 +2,10 @@ import {App} from "obsidian";
 import Graph from "./Graph";
 import Link from "./Link";
 import Node from "./Node";
-import {ForceGraph, ForceGraphOptions} from "./ForceGraph";
-
+import {ForceGraph} from "./ForceGraph";
+import {GraphSettings} from "../settings/GraphSettings";
+import ObsidianTheme from "../views/ObsidianTheme";
+import State from "../util/State";
 
 
 export abstract class GraphFactory {
@@ -13,7 +15,11 @@ export abstract class GraphFactory {
 		return new Graph(nodes, links, nodeIndex);
 	}
 
-	static createForceGraph = (graph: Graph, rootHtmlElement: HTMLElement, options: ForceGraphOptions) => {
-		return new ForceGraph(graph, rootHtmlElement, options);
+	static createForceGraph = (graph: Graph, rootHtmlElement: HTMLElement, settings: State<GraphSettings>, theme: ObsidianTheme) => {
+		const graphContainer = document.createElement("div");
+		graphContainer.style.width = "100%";
+		graphContainer.style.height = "100%";
+		rootHtmlElement.appendChild(graphContainer);
+		return new ForceGraph(graph, graphContainer, settings, theme);
 	}
 }

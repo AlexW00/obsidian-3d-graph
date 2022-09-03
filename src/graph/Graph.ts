@@ -21,4 +21,5 @@ export default class Graph {
 		}
 		return null;
 	}
+
 }
