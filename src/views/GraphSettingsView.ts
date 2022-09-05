@@ -16,7 +16,7 @@ export class GraphSettingsView extends HTMLDivElement {
 	async connectedCallback() {
 		this.classList.add("graph-controls");
 		this.appendSetting(this.graphSettings.filters, "Filters", FilterSettingsView);
-		this.appendSetting(this.graphSettings.groups, "Groups", GroupSettingsView);
+		// TODO: implement later this.appendSetting(this.graphSettings.groups, "Groups", GroupSettingsView);
 		this.appendSetting(this.graphSettings.display, "Display", DisplaySettingsView)
 	}
 

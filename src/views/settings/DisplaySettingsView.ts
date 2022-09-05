@@ -5,6 +5,7 @@ const DisplaySettingsView = (displaySettings: DisplaySettings, containerEl: HTML
 	NodeSizeSetting(displaySettings, containerEl);
 	LinkThicknessSetting(displaySettings, containerEl);
 	ParticleSizeSetting(displaySettings, containerEl);
+	ParticleCountSetting(displaySettings, containerEl);
 }
 
 const NodeSizeSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
@@ -44,6 +45,20 @@ const ParticleSizeSetting = (displaySettings: DisplaySettings, containerEl: HTML
 					.setValue(displaySettings.particleSize || 0)
 					.onChange(async (value) => {
 						displaySettings.particleSize = value;
+					});
+			}
+		)
+}
+
+const ParticleCountSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
+	new Setting(containerEl)
+		.setName("Particle Count")
+		.addSlider(
+			(slider) => {
+				slider.setLimits(1, 20, 1)
+					.setValue(displaySettings.particleCount || 0)
+					.onChange(async (value) => {
+						displaySettings.particleCount = value;
 					});
 			}
 		)

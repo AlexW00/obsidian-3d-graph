@@ -46,15 +46,13 @@ export class ForceGraph {
 		} else if (data.currentPath === "display.linkWidth") {
 			this.instance.linkWidth(data.newValue);
 		} else if (data.currentPath === "display.particleSize") {
-			// TODO
-			console.log("TODO: update particle size");
-		} else if (data.currentPath === "filters.doShowOrphans") {
-			// TODO
-			console.log("TODO: update orphans");
+			this.instance.linkDirectionalParticleWidth(this.settings.value.display.particleSize)
 		} else if (data.currentPath === "groups.groups") {
 			// TODO
 			console.log("TODO: update groups");
 		}
+
+		this.instance.refresh(); // other settings only need a refresh
 	}
 
 	public update_dimensions() {
@@ -76,6 +74,7 @@ export class ForceGraph {
 				: this.theme.interactiveAccent
 			: this.theme.textMuted
 		)
+			.nodeVisibility((node: Node) => this.settings.value.filters.doShowOrphans || node.links.length > 0)
 			.onNodeHover(this.onNodeHover)
 	}
 
@@ -94,8 +93,8 @@ export class ForceGraph {
 
 	private createLinks = () => {
 		this.instance.linkWidth((link: Link) => this.highlightedLinks.has(link) ? this.settings.value.display.linkThickness * 1.5 : this.settings.value.display.linkThickness)
-			.linkDirectionalParticles((link: Link) => this.highlightedLinks.has(link) ? this.settings.value.display.particleSize : 0)
-			.linkDirectionalParticleWidth(4)
+			.linkDirectionalParticles((link: Link) => this.highlightedLinks.has(link) ? this.settings.value.display.particleCount : 0)
+			.linkDirectionalParticleWidth(this.settings.value.display.particleSize)
 			.onLinkHover(this.onLinkHover);
 	}
 
