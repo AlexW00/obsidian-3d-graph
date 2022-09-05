@@ -1,21 +1,26 @@
+export type HtmlBuilder = (containerEl: HTMLElement) => void;
+
 export class TreeItem extends HTMLDivElement {
 
 	private readonly $inner: HTMLElement;
-	private readonly $children: HTMLElement[];
+	private readonly childrenBuilders: HtmlBuilder [];
 
-	constructor($inner: HTMLElement, $children: HTMLElement[]) {
+	constructor($inner: HTMLElement, children: HtmlBuilder[]) {
 		super();
-		this.classList.add("tree-item");
 		this.$inner = $inner;
-		this.$children = $children;
+		this.childrenBuilders = children;
 	}
 
-	onload = () => {
+	async connectedCallback() {
 		this.appendSelf();
 		this.appendChildren();
 	}
 
 	private appendSelf = () => {
+		["graph-control-section", "tree-item"].forEach(
+			(className) => this.classList.add(className)
+		)
+
 		const $self = createDiv({cls: "tree-item-self"});
 		// $self.append(createDiv({cls: "tree-item-icon collapse-icon"}));
 		$self.addEventListener(
@@ -33,7 +38,7 @@ export class TreeItem extends HTMLDivElement {
 
 	private appendChildren = () => {
 		const $children = createDiv({cls: "tree-item-children"});
-		this.$children.forEach((child: HTMLElement) => $children.append(child));
+		this.childrenBuilders.forEach((build: HtmlBuilder) => build($children));
 		this.append($children);
 	}
 
@@ -45,3 +50,4 @@ export class TreeItem extends HTMLDivElement {
 	}
 }
 
+customElements.define("tree-item", TreeItem, {extends: "div"});

@@ -1,6 +1,8 @@
-.scene-tooltip {
-	color: var(--text-primary);
-	background: var(--background-primary);
-	border: var(--background-modifier-border) 1px solid;
-	padding: 3px;
+.graph-3d-view .tree-item.is-collapsed > .tree-item-children {
+	display: none;
+	visibility: hidden;
+}
+
+.graph-3d-view .graph-controls {
+	margin-top: 3em;
 }

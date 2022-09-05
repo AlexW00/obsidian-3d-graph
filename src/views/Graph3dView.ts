@@ -22,10 +22,11 @@ export class Graph3dView extends ItemView {
 		const viewContent = this.getViewContent();
 
 		if (viewContent) {
+			viewContent.classList.add("graph-3d-view");
 			this.appendGraph(viewContent);
-			viewContent.append(
-				new GraphSettingsView(this.settings.value)
-			)
+
+			const settings = new GraphSettingsView(this.settings.value);
+			viewContent.appendChild(settings);
 		} else {
 			console.error("Could not find view content");
 		}

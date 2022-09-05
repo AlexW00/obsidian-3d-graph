@@ -4,7 +4,7 @@ import Node from "./Node";
 import Link from "./Link";
 import ObsidianTheme from "../views/ObsidianTheme";
 import {GraphSettings} from "../settings/GraphSettings";
-import State from "../util/State";
+import State, {StateChange} from "../util/State";
 
 // Adapted from https://github.com/vasturiano/3d-force-graph/blob/master/example/highlight/index.html
 
@@ -36,6 +36,25 @@ export class ForceGraph {
 
 		this.createNodes();
 		this.createLinks();
+		this.settings.onChange(this.onStateChanged);
+	}
+
+	private onStateChanged = (data: StateChange) => {
+		console.log("ForceGraph.onStateChanged", data);
+		if (data.currentPath === "display.nodeSize") {
+			this.instance.nodeRelSize(data.newValue);
+		} else if (data.currentPath === "display.linkWidth") {
+			this.instance.linkWidth(data.newValue);
+		} else if (data.currentPath === "display.particleSize") {
+			// TODO
+			console.log("TODO: update particle size");
+		} else if (data.currentPath === "filters.doShowOrphans") {
+			// TODO
+			console.log("TODO: update orphans");
+		} else if (data.currentPath === "groups.groups") {
+			// TODO
+			console.log("TODO: update groups");
+		}
 	}
 
 	public update_dimensions() {
