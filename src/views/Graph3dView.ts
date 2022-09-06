@@ -1,4 +1,4 @@
-import {ItemView, WorkspaceLeaf} from "obsidian";
+import {ItemView, TAbstractFile, WorkspaceLeaf} from "obsidian";
 import {GraphFactory} from "../graph/GraphFactory";
 import Node from "../graph/Node";
 import ObsidianTheme from "./ObsidianTheme";
@@ -11,10 +11,13 @@ export class Graph3dView extends ItemView {
 
 	private forceGraph: ForceGraph;
 	private readonly settings: State<GraphSettings>;
+	
+	private rootFile: State<string | undefined>;
 
-	constructor(leaf: WorkspaceLeaf, settingsState: State<GraphSettings>) {
+	constructor(leaf: WorkspaceLeaf, settingsState: State<GraphSettings>, rootFile: State<string | undefined>) {
 		super(leaf);
 		this.settings = settingsState;
+		this.rootFile = rootFile;
 	}
 
 	onload() {
@@ -61,7 +64,7 @@ export class Graph3dView extends ItemView {
 		const graph = GraphFactory.createGraph(this.app),
 			theme = new ObsidianTheme(this.containerEl);
 
-		this.forceGraph = GraphFactory.createForceGraph(graph, viewContent, this.settings, theme);
+		this.forceGraph = GraphFactory.createForceGraph(graph, viewContent, this.settings, theme, this.rootFile);
 
 		this.forceGraph.getInstance().onNodeClick((node: Node, mouseEvent: MouseEvent) => {
 			console.log(node, mouseEvent);

@@ -19,11 +19,13 @@ export class ForceGraph {
 
 	private readonly settings: State<GraphSettings>;
 	private readonly theme: ObsidianTheme;
+	private rootFile: State<string | undefined>
 
-	constructor(graph: Graph, rootHtmlElement: HTMLElement, settings: State<GraphSettings>, theme: ObsidianTheme) {
+	constructor(graph: Graph, rootHtmlElement: HTMLElement, settings: State<GraphSettings>, theme: ObsidianTheme, rootFile: State<string | undefined>) {
 		this.rootHtmlElement = rootHtmlElement;
 		this.settings = settings;
 		this.theme = theme;
+		this.rootFile = rootFile;
 
 		const [width, height] = [this.rootHtmlElement.innerWidth, this.rootHtmlElement.innerHeight];
 		this.instance = ForceGraph3D()(rootHtmlElement)
@@ -74,8 +76,13 @@ export class ForceGraph {
 				: this.theme.interactiveAccent
 			: this.theme.textMuted
 		)
-			.nodeVisibility((node: Node) => this.settings.value.filters.doShowOrphans || node.links.length > 0)
+			.nodeVisibility(this.doShowNode)
 			.onNodeHover(this.onNodeHover)
+	}
+
+	private doShowNode = (node: Node) => {
+		if (this.rootFile.value) return node.isNeighborOf(this.rootFile.value) || node.id === this.rootFile.value;
+		return this.settings.value.filters.doShowOrphans || node.links.length > 0
 	}
 
 	private onNodeHover = (node: Node | null) => {

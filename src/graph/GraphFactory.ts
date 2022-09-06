@@ -1,4 +1,4 @@
-import {App} from "obsidian";
+import {App, TAbstractFile} from "obsidian";
 import Graph from "./Graph";
 import Link from "./Link";
 import Node from "./Node";
@@ -15,11 +15,11 @@ export abstract class GraphFactory {
 		return new Graph(nodes, links, nodeIndex);
 	}
 
-	static createForceGraph = (graph: Graph, rootHtmlElement: HTMLElement, settings: State<GraphSettings>, theme: ObsidianTheme) => {
+	static createForceGraph = (graph: Graph, rootHtmlElement: HTMLElement, settings: State<GraphSettings>, theme: ObsidianTheme, rootFile: State<string | undefined>) => {
 		const graphContainer = document.createElement("div");
 		graphContainer.style.width = "100%";
 		graphContainer.style.height = "100%";
 		rootHtmlElement.appendChild(graphContainer);
-		return new ForceGraph(graph, graphContainer, settings, theme);
+		return new ForceGraph(graph, graphContainer, settings, theme, rootFile);
 	}
 }

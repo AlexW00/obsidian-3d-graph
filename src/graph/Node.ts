@@ -1,5 +1,5 @@
 import Link from "./Link";
-import {TFile} from "obsidian";
+import {TAbstractFile, TFile} from "obsidian";
 
 export default class Node {
 	id: string;
@@ -33,5 +33,10 @@ export default class Node {
 
 	addLink(link: Link) {
 		this.links.push(link);
+	}
+
+	public isNeighborOf(node: Node | string) {
+		if (node instanceof Node) return this.neighbors.includes(node);
+		else return this.neighbors.some((neighbor) => neighbor.id === node);
 	}
 }
