@@ -1,23 +1,15 @@
-import {GraphSettings} from "../settings/GraphSettings";
 import {TreeItem} from "./TreeItem";
 import FilterSettingsView from "./settings/FilterSettingsView";
-import GroupSettingsView from "./settings/GroupSettingsView";
 import DisplaySettingsView from "./settings/DisplaySettingsView";
+import Graph3dPlugin from "../main";
 
 export class GraphSettingsView extends HTMLDivElement {
 
-	private readonly graphSettings: GraphSettings;
-
-	constructor(graphSettings: GraphSettings) {
-		super();
-		this.graphSettings = graphSettings;
-	}
-
 	async connectedCallback() {
 		this.classList.add("graph-controls");
-		this.appendSetting(this.graphSettings.filters, "Filters", FilterSettingsView);
+		this.appendSetting(Graph3dPlugin.settingsState.value.filters, "Filters", FilterSettingsView);
 		// TODO: implement later this.appendSetting(this.graphSettings.groups, "Groups", GroupSettingsView);
-		this.appendSetting(this.graphSettings.display, "Display", DisplaySettingsView)
+		this.appendSetting(Graph3dPlugin.settingsState.value.display, "Display", DisplaySettingsView)
 	}
 
 	private appendSetting<S>(setting: S, title: string, view: (setting: S, containerEl: HTMLElement) => void) {

@@ -1,23 +1,17 @@
-import {ItemView, TAbstractFile, WorkspaceLeaf} from "obsidian";
+import {ItemView, WorkspaceLeaf} from "obsidian";
 import {GraphFactory} from "../graph/GraphFactory";
 import Node from "../graph/Node";
-import ObsidianTheme from "./ObsidianTheme";
 import {ForceGraph} from "../graph/ForceGraph";
-import {GraphSettings} from "../settings/GraphSettings";
-import State from "../util/State";
 import {GraphSettingsView} from "./GraphSettingsView";
 
 export class Graph3dView extends ItemView {
 
 	private forceGraph: ForceGraph;
-	private readonly settings: State<GraphSettings>;
-	
-	private rootFile: State<string | undefined>;
+	private readonly isLocalGraph: boolean;
 
-	constructor(leaf: WorkspaceLeaf, settingsState: State<GraphSettings>, rootFile: State<string | undefined>) {
+	constructor(leaf: WorkspaceLeaf, isLocalGraph = false) {
 		super(leaf);
-		this.settings = settingsState;
-		this.rootFile = rootFile;
+		this.isLocalGraph = isLocalGraph;
 	}
 
 	onload() {
@@ -28,7 +22,7 @@ export class Graph3dView extends ItemView {
 			viewContent.classList.add("graph-3d-view");
 			this.appendGraph(viewContent);
 
-			const settings = new GraphSettingsView(this.settings.value);
+			const settings = new GraphSettingsView();
 			viewContent.appendChild(settings);
 		} else {
 			console.error("Could not find view content");
@@ -61,13 +55,22 @@ export class Graph3dView extends ItemView {
 	}
 
 	private appendGraph (viewContent: HTMLElement) {
-		const graph = GraphFactory.createGraph(this.app),
-			theme = new ObsidianTheme(this.containerEl);
-
-		this.forceGraph = GraphFactory.createForceGraph(graph, viewContent, this.settings, theme, this.rootFile);
+		this.forceGraph = GraphFactory.createForceGraph(viewContent, this.isLocalGraph);
 
 		this.forceGraph.getInstance().onNodeClick((node: Node, mouseEvent: MouseEvent) => {
-			console.log(node, mouseEvent);
+			const clickedNodeFile = this.app.vault
+				.getFiles()
+				.find((f) => f.path === node.id);
+
+			if (clickedNodeFile) {
+				if (this.isLocalGraph) {
+					this.app.workspace
+						.getLeaf(false)
+						.openFile(clickedNodeFile);
+				} else {
+					this.leaf.openFile(clickedNodeFile);
+				}
+			}
 		})
 	}
 }
