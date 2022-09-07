@@ -48,9 +48,9 @@ export class ForceGraph {
 
 	private getGraphData = (): Graph => {
 		if (this.isLocalGraph && Graph3dPlugin.openFile.value) {
-			return Graph3dPlugin.getGlobalGraphCopy().getLocalGraph(Graph3dPlugin.openFile.value);
+			return Graph3dPlugin.cloneGlobalGraph().getLocalGraph(Graph3dPlugin.openFile.value);
 		}
-		else return Graph3dPlugin.getGlobalGraphCopy();
+		else return Graph3dPlugin.cloneGlobalGraph();
 	}
 
 	private onOpenFileChanged = () => {

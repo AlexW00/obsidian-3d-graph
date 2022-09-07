@@ -42,4 +42,9 @@ export default class Graph {
 		}
 	}
 
+	public clone(): Graph {
+		const clonedStruct = structuredClone(this);
+		return new Graph(clonedStruct.nodes, clonedStruct.links, clonedStruct.nodeIndex);
+	}
+
 }
