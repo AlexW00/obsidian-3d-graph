@@ -6,3 +6,7 @@
 .graph-3d-view .graph-controls {
 	margin-top: 3em;
 }
+
+.graph-3d-view .node-label {
+	color: var(--text-normal);
+}

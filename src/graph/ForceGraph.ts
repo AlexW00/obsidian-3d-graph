@@ -26,7 +26,7 @@ export class ForceGraph {
 		const [width, height] = [this.rootHtmlElement.innerWidth, this.rootHtmlElement.innerHeight];
 		this.instance = ForceGraph3D()(rootHtmlElement)
 			.graphData(this.getGraphData())
-			.nodeLabel((node: Node) => node.name)
+			.nodeLabel((node: Node) => `<div class="node-label">${node.name}</div>`)
 			.nodeRelSize(Graph3dPlugin.getSettings().display.nodeSize)
 			.backgroundColor(Graph3dPlugin.theme.backgroundPrimary)
 			.width(width)
@@ -47,6 +47,8 @@ export class ForceGraph {
 
 	private onOpenFileChanged = () => {
 		this.instance.graphData(this.getGraphData());
+		this.createNodes();
+		this.createLinks();
 		this.instance.refresh();
 	}
 
