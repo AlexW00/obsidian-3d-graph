@@ -1,7 +1,7 @@
 import ForceGraph3D, {ForceGraph3DInstance} from "3d-force-graph";
 import Node from "./Node";
 import Link from "./Link";
-import State, {StateChange} from "../util/State";
+import {StateChange} from "../util/State";
 import Graph3dPlugin from "../main";
 import Graph from "./Graph";
 
@@ -9,7 +9,7 @@ import Graph from "./Graph";
 
 export class ForceGraph {
 
-	private readonly instance: ForceGraph3DInstance;
+	private instance: ForceGraph3DInstance;
 	private readonly rootHtmlElement: HTMLElement;
 
 	private readonly highlightedNodes: Set<string> = new Set();
@@ -23,33 +23,38 @@ export class ForceGraph {
 		this.rootHtmlElement = rootHtmlElement;
 		this.isLocalGraph = isLocalGraph;
 
+		this.createGraph();
+
+		Graph3dPlugin.settingsState.onChange(this.onSettingsStateChanged);
+		Graph3dPlugin.openFile.onChange(this.onOpenFileChanged);
+	}
+
+	private createGraph() {
+		this.createInstance();
+		this.createNodes();
+		this.createLinks();
+	}
+
+	private createInstance() {
 		const [width, height] = [this.rootHtmlElement.innerWidth, this.rootHtmlElement.innerHeight];
-		this.instance = ForceGraph3D()(rootHtmlElement)
+		this.instance = ForceGraph3D()(this.rootHtmlElement)
 			.graphData(this.getGraphData())
 			.nodeLabel((node: Node) => `<div class="node-label">${node.name}</div>`)
 			.nodeRelSize(Graph3dPlugin.getSettings().display.nodeSize)
 			.backgroundColor(Graph3dPlugin.theme.backgroundPrimary)
 			.width(width)
-			.height(height);
-
-		this.createNodes();
-		this.createLinks();
-		Graph3dPlugin.settingsState.onChange(this.onSettingsStateChanged);
-		Graph3dPlugin.openFile.onChange(this.onOpenFileChanged);
+			.height(height)
 	}
 
 	private getGraphData = (): Graph => {
 		if (this.isLocalGraph && Graph3dPlugin.openFile.value) {
-			return Graph3dPlugin.getGlobalGraph().getLocalGraph(Graph3dPlugin.openFile.value);
+			return Graph3dPlugin.getGlobalGraphCopy().getLocalGraph(Graph3dPlugin.openFile.value);
 		}
-		else return Graph3dPlugin.getGlobalGraph();
+		else return Graph3dPlugin.getGlobalGraphCopy();
 	}
 
 	private onOpenFileChanged = () => {
 		this.instance.graphData(this.getGraphData());
-		this.createNodes();
-		this.createLinks();
-		this.instance.refresh();
 	}
 
 	private onSettingsStateChanged = (data: StateChange) => {

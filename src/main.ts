@@ -78,8 +78,9 @@ export default class Graph3dPlugin extends Plugin {
 		}
 	}
 
-	public static getGlobalGraph() : Graph {
-		return Graph3dPlugin.globalGraph;
+	public static getGlobalGraphCopy() : Graph {
+		// we need to copy the graph because otherwise D3 will modify the original graph
+		return Object.assign(new Graph([], [], new Map()), Graph3dPlugin.globalGraph);
 	}
 
 	public static getSettings() : GraphSettings {

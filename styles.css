@@ -3,9 +3,12 @@
 	visibility: hidden;
 }
 
-.graph-3d-view .graph-controls {
-	margin-top: 3em;
+.graph-3d-view {
+	padding: 0;
+	overflow: hidden;
+	position: relative;
 }
+
 
 .graph-3d-view .node-label {
 	color: var(--text-normal);

@@ -10,7 +10,7 @@ export default class Graph {
 	constructor(nodes: Node[], links: Link[], nodeIndex: Map<string, number>) {
 		console.log(nodes, links, nodeIndex);
 		this.nodes = nodes;
-		this.links = links;
+		this.links = links;2
 		this.nodeIndex = nodeIndex;
 	}
 
@@ -33,8 +33,11 @@ export default class Graph {
 				nodeIndex.set(node.id, index);
 			});
 
-			return new Graph(nodes, links, nodeIndex);
+			const g = new Graph(nodes, links, nodeIndex);
+			console.log("subgraph", g);
+			return g;
 		} else {
+			console.log("empty subgraph");
 			return new Graph([], [], new Map<string, number>());
 		}
 	}

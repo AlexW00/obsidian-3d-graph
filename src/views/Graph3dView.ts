@@ -29,6 +29,12 @@ export class Graph3dView extends ItemView {
 		}
 	}
 
+	onunload() {
+		super.onunload();
+		console.log("Unloading 3D Graph");
+		this.forceGraph.getInstance()._destructor();
+		//this.forceGraph = null;
+	}
 
 	getDisplayText(): string {
 		return "3D-Graph";
