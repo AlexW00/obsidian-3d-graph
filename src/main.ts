@@ -1,4 +1,4 @@
-import {Plugin, TAbstractFile} from 'obsidian';
+import {App, Plugin, TAbstractFile} from 'obsidian';
 import {Graph3dView} from "./views/Graph3dView";
 import {DEFAULT_SETTINGS, GraphSettings} from "./settings/GraphSettings";
 import State from "./util/State";
@@ -17,13 +17,15 @@ export default class Graph3dPlugin extends Plugin {
 	public static theme: ObsidianTheme;
 	public static openFile: State<string | undefined> = new State(undefined);
 
+	public static app: App;
+
 	private unregisterStateChangeCallback: (() => void) | null = null;
 
 	async onload() {
 		await this.loadSettings();
 		Graph3dPlugin.settingsState = new State<GraphSettings>(this.settings);
 		Graph3dPlugin.theme = new ObsidianTheme(this.app.workspace.containerEl);
-
+		Graph3dPlugin.app = this.app;
 		//console.log(Graph3dPlugin.settingsState.value, Graph3dPlugin.graphState.value, Graph3dPlugin.theme);
 
 		this.unregisterStateChangeCallback = Graph3dPlugin.settingsState.onChange(() => this.saveSettings())
