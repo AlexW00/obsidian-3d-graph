@@ -4,7 +4,6 @@ import Link from "./Link";
 import {StateChange} from "../util/State";
 import Graph3dPlugin from "../main";
 import Graph from "./Graph";
-import {GraphFactory} from "./GraphFactory";
 
 // Adapted from https://github.com/vasturiano/3d-force-graph/blob/master/example/highlight/index.html
 
@@ -48,11 +47,10 @@ export class ForceGraph {
 	}
 
 	private getGraphData = (): Graph => {
-		const graph = GraphFactory.createGraph(Graph3dPlugin.app);
 		if (this.isLocalGraph && Graph3dPlugin.openFile.value) {
-			return graph.getLocalGraph(Graph3dPlugin.openFile.value);
+			return Graph3dPlugin.cloneGlobalGraph().getLocalGraph(Graph3dPlugin.openFile.value);
 		}
-		else return graph;
+		else return Graph3dPlugin.cloneGlobalGraph();
 	}
 
 	private onOpenFileChanged = () => {

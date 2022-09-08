@@ -20,7 +20,8 @@ export default class Node {
 	static createFromFiles (files: TFile[]) : [Node[], Map<string, number>] {
 		const nodeIndex = new Map<string, number>();
 		return [files.map((file, index) => {
-			const node = new Node(file.path, file.name);
+			const hashedFilepath = stringToHash(file.path);
+			const node = new Node(hashedFilepath, file.name);
 			nodeIndex.set(node.id, index);
 			return node;
 		}), nodeIndex];
@@ -40,3 +41,13 @@ export default class Node {
 		else return this.neighbors.some((neighbor) => neighbor.id === node);
 	}
 }
+export const stringToHash = (str: string): string => {
+	let hash = 0, i, chr;
+	if (str.length === 0) return hash.toString();
+	for (i = 0; i < str.length; i++) {
+		chr   = str.charCodeAt(i);
+		hash  = ((hash << 5) - hash) + chr;
+		hash |= 0; // Convert to 32bit integer
+	}
+	return hash.toString();
+};

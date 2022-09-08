@@ -1,4 +1,4 @@
-import Node from "./Node";
+import Node, {stringToHash} from "./Node";
 
 export type ResolvedLinkCache = Record<string, Record<string, number>>;
 
@@ -14,7 +14,7 @@ export default class Link {
 	static createFromCache(cache: ResolvedLinkCache, nodes: Node[], nodeIndex: Map<string, number>) {
 		return Object.keys(app.metadataCache.resolvedLinks).map((id) => {
 			return Object.keys(app.metadataCache.resolvedLinks[id]).map((targetId) => {
-				const link = new Link(id, targetId);
+				const link = new Link(stringToHash(id), stringToHash(targetId));
 
 				const [node1Index, node2Index] = [nodeIndex.get(id), nodeIndex.get(targetId)];
 				if (node1Index !== undefined && node2Index !== undefined) {
