@@ -50,4 +50,5 @@ export class TreeItem extends HTMLDivElement {
 	}
 }
 
-customElements.define("tree-item", TreeItem, {extends: "div"});
+try { customElements.define("tree-item", TreeItem, {extends: "div"}); }
+catch (e) { console.error(e); }

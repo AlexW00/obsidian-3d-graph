@@ -28,4 +28,5 @@ export class GraphSettingsView extends HTMLDivElement {
 
 }
 
-customElements.define("graph-settings-view", GraphSettingsView, {extends: "div"});
+try { customElements.define("graph-settings-view", GraphSettingsView, {extends: "div"}); }
+catch (e) { console.error(e); }
