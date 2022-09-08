@@ -4,14 +4,16 @@ import {TAbstractFile, TFile} from "obsidian";
 export default class Node {
 	id: string;
 	name: string;
+	path: string
 	val: number; // = weight
 
 	neighbors: Node[];
 	links: Link[];
 
-	constructor(id: string, name: string, val = 10, neighbors: Node[] = [], links: Link[] = []) {
+	constructor(id: string, name: string, path: string, val = 10, neighbors: Node[] = [], links: Link[] = []) {
 		this.id = id;
 		this.name = name;
+		this.path = path;
 		this.val = val;
 		this.neighbors = neighbors;
 		this.links = links;
@@ -21,7 +23,7 @@ export default class Node {
 		const nodeIndex = new Map<string, number>();
 		return [files.map((file, index) => {
 			const hashedFilepath = stringToHash(file.path);
-			const node = new Node(hashedFilepath, file.name);
+			const node = new Node(hashedFilepath, file.name, file.path);
 			nodeIndex.set(node.id, index);
 			return node;
 		}), nodeIndex];

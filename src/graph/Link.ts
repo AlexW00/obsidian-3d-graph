@@ -16,7 +16,7 @@ export default class Link {
 			return Object.keys(app.metadataCache.resolvedLinks[id]).map((targetId) => {
 				const link = new Link(stringToHash(id), stringToHash(targetId));
 
-				const [node1Index, node2Index] = [nodeIndex.get(id), nodeIndex.get(targetId)];
+				const [node1Index, node2Index] = [nodeIndex.get(stringToHash(id)), nodeIndex.get(stringToHash(targetId))];
 				if (node1Index !== undefined && node2Index !== undefined) {
 					nodes[node1Index].addNeighbor(nodes[node2Index]);
 					nodes[node2Index].addNeighbor(nodes[node1Index]);

@@ -10,7 +10,7 @@ export default class Graph {
 	constructor(nodes: Node[], links: Link[], nodeIndex: Map<string, number>) {
 		console.log(nodes, links, nodeIndex);
 		this.nodes = nodes;
-		this.links = links;2
+		this.links = links;
 		this.nodeIndex = nodeIndex;
 	}
 
@@ -23,8 +23,12 @@ export default class Graph {
 		return null;
 	}
 
+	findNodesByPath(path: string): Node[] {
+		return this.nodes.filter((node) => node.path === path);
+	}
+
 	public getLocalGraph(nodeId: string): Graph {
-		const node = this.findNode(nodeId);
+		const node = this.findNodesByPath(nodeId)[0];
 		if (node) {
 			const nodes = [node, ...node.neighbors];
 			const links = node.links;

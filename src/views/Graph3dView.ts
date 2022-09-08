@@ -66,7 +66,7 @@ export class Graph3dView extends ItemView {
 		this.forceGraph.getInstance().onNodeClick((node: Node, mouseEvent: MouseEvent) => {
 			const clickedNodeFile = this.app.vault
 				.getFiles()
-				.find((f) => f.path === node.id);
+				.find((f) => f.path === node.path);
 
 			if (clickedNodeFile) {
 				if (this.isLocalGraph) {
