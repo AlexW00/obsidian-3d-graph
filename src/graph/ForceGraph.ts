@@ -4,6 +4,7 @@ import Link from "./Link";
 import {StateChange} from "../util/State";
 import Graph3dPlugin from "../main";
 import Graph from "./Graph";
+import {NodeGroup} from "../settings/categories/GroupSettings";
 
 // Adapted from https://github.com/vasturiano/3d-force-graph/blob/master/example/highlight/index.html
 
@@ -86,14 +87,25 @@ export class ForceGraph {
 
 	private createNodes = () => {
 		this.instance
-			.nodeColor((node: Node) => this.highlightedNodes.has(node.id)
-			? node === this.hoveredNode
-				? Graph3dPlugin.theme.interactiveAccentHover
-				: Graph3dPlugin.theme.interactiveAccent
-			: Graph3dPlugin.theme.textMuted
-		)
+			.nodeColor((node: Node) => this.getNodeColor(node))
 			.nodeVisibility(this.doShowNode)
 			.onNodeHover(this.onNodeHover)
+	}
+
+	private getNodeColor = (node: Node): string => {
+		if (this.highlightedNodes.has(node.id)) {
+			// Node is highlighted
+			return node === this.hoveredNode
+				? Graph3dPlugin.theme.interactiveAccentHover
+				: Graph3dPlugin.theme.interactiveAccent
+		} else {
+			let color = Graph3dPlugin.theme.textMuted;
+			Graph3dPlugin.getSettings().groups.groups.forEach(group => {
+				// multiple groups -> last match wins
+				if (NodeGroup.matches(group.query, node)) color = group.color;
+			});
+			return color;
+		}
 	}
 
 	private doShowNode = (node: Node) => {

@@ -2,13 +2,14 @@ import {TreeItem} from "./TreeItem";
 import FilterSettingsView from "./settings/FilterSettingsView";
 import DisplaySettingsView from "./settings/DisplaySettingsView";
 import Graph3dPlugin from "../main";
+import GroupSettingsView from "./settings/GroupSettingsView";
 
 export class GraphSettingsView extends HTMLDivElement {
 
 	async connectedCallback() {
 		this.classList.add("graph-controls");
 		this.appendSetting(Graph3dPlugin.settingsState.value.filters, "Filters", FilterSettingsView);
-		// TODO: implement later this.appendSetting(this.graphSettings.groups, "Groups", GroupSettingsView);
+		this.appendSetting(Graph3dPlugin.settingsState.value.groups, "Groups", GroupSettingsView);
 		this.appendSetting(Graph3dPlugin.settingsState.value.display, "Display", DisplaySettingsView)
 	}
 
@@ -24,6 +25,10 @@ export class GraphSettingsView extends HTMLDivElement {
 		)
 		item.classList.add("is-collapsed");
 		this.append(item);
+	}
+
+	async disconnectedCallback() {
+		this.innerHTML = "";
 	}
 
 }

@@ -1,5 +1,5 @@
 import {DisplaySettings} from "../../settings/categories/DisplaySettings";
-import {Setting} from "obsidian";
+import SimpleSliderSetting, {DEFAULT_SLIDER_STEP_OPTIONS, SliderOptions} from "./SimpleSliderSetting";
 
 const DisplaySettingsView = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
 	NodeSizeSetting(displaySettings, containerEl);
@@ -9,60 +9,48 @@ const DisplaySettingsView = (displaySettings: DisplaySettings, containerEl: HTML
 }
 
 const NodeSizeSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
-	new Setting(containerEl)
-		.setName("Node Size")
-		.addSlider(
-			(slider) => {
-				slider.setLimits(1, 20, 1)
-					.setValue(displaySettings.nodeSize || 0)
-					.onChange(async (value) => {
-						displaySettings.nodeSize = value;
-					});
-			}
-		)
+	const options: SliderOptions = {
+		name: "Node Size",
+		value: displaySettings.nodeSize,
+		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS
+	}
+	return SimpleSliderSetting(containerEl, options, (value) => {
+		displaySettings.nodeSize = value;
+	});
 }
 
 const LinkThicknessSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
-	new Setting(containerEl)
-		.setName("Link Thickness")
-		.addSlider(
-			(slider) => {
-				slider.setLimits(1, 20, 1)
-					.setValue(displaySettings.linkThickness || 0)
-					.onChange(async (value) => {
-						displaySettings.linkThickness = value;
-					});
-			}
-		)
+	const options: SliderOptions = {
+		name: "Link Thickness",
+		value: displaySettings.linkThickness,
+		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS
+	};
+	return SimpleSliderSetting(containerEl, options, (value) => {
+		displaySettings.linkThickness = value;
+	});
 }
 
 const ParticleSizeSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
-	new Setting(containerEl)
-		.setName("Particle Size")
-		.addSlider(
-			(slider) => {
-				slider.setLimits(1, 20, 1)
-					.setValue(displaySettings.particleSize || 0)
-					.onChange(async (value) => {
-						displaySettings.particleSize = value;
-					});
-			}
-		)
+	const options: SliderOptions = {
+		name: "Particle Size",
+		value: displaySettings.particleSize,
+		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS
+	}
+	return SimpleSliderSetting(containerEl, options, (value) => {
+		displaySettings.particleSize = value;
+	});
 }
 
 const ParticleCountSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
-	new Setting(containerEl)
-		.setName("Particle Count")
-		.addSlider(
-			(slider) => {
-				slider.setLimits(1, 20, 1)
-					.setValue(displaySettings.particleCount || 0)
-					.onChange(async (value) => {
-						displaySettings.particleCount = value;
-					});
-			}
-		)
-}
+	const options: SliderOptions = {
+		name: "Particle Count",
+		value: displaySettings.particleCount,
+		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS
 
+	}
+	return SimpleSliderSetting(containerEl, options, (value) => {
+		displaySettings.particleCount = value;
+	});
+}
 
 export default DisplaySettingsView;
