@@ -8,27 +8,26 @@ export default class Graph {
 	private nodeIndex: Map<string, number>;
 
 	constructor(nodes: Node[], links: Link[], nodeIndex: Map<string, number>) {
-		console.log(nodes, links, nodeIndex);
 		this.nodes = nodes;
 		this.links = links;
 		this.nodeIndex = nodeIndex;
 	}
 
-	findNode(id: string): Node | null {
+	getNodeById(id: string): Node | null {
 		const index = this.nodeIndex.get(id);
-		console.log(index, id);
 		if (index !== undefined) {
 			return this.nodes[index];
 		}
 		return null;
 	}
 
-	findNodesByPath(path: string): Node[] {
-		return this.nodes.filter((node) => node.path === path);
+	// should only return at max 1 node
+	findNodeByPath(path: string): Node | undefined {
+		return this.nodes.find((node) => node.path === path);
 	}
 
 	public getLocalGraph(nodeId: string): Graph {
-		const node = this.findNodesByPath(nodeId)[0];
+		const node = this.findNodeByPath(nodeId);
 		if (node) {
 			const nodes = [node, ...node.neighbors];
 			const links = node.links;
@@ -37,11 +36,8 @@ export default class Graph {
 				nodeIndex.set(node.id, index);
 			});
 
-			const g = new Graph(nodes, links, nodeIndex);
-			console.log("subgraph", g);
-			return g;
+			return new Graph(nodes, links, nodeIndex);
 		} else {
-			console.log("empty subgraph");
 			return new Graph([], [], new Map<string, number>());
 		}
 	}

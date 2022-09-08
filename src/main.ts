@@ -80,13 +80,6 @@ export default class Graph3dPlugin extends Plugin {
 		}
 	}
 
-	public static cloneGlobalGraph() : Graph {
-		// we need to copy the graph because otherwise D3 will modify the original graph
-		const clonedGraph = Graph3dPlugin.globalGraph.clone();
-		console.log("cloned graph from", Graph3dPlugin.globalGraph);
-		return clonedGraph;
-	}
-
 	public static getSettings() : GraphSettings {
 		return Graph3dPlugin.settingsState.value;
 	}
