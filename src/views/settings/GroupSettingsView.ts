@@ -1,21 +1,40 @@
 import {GroupSettings, NodeGroup} from "../../settings/categories/GroupSettings";
 import {Setting} from "obsidian";
 import Graph3dPlugin from "../../main";
+import State, {StateChange} from "../../util/State";
+import ColorPicker from "../atomics/ColorPicker";
 
-const GroupSettingsView = (groupSettings: GroupSettings, containerEl: HTMLElement) => {
-	groupSettings.groups.forEach( (group) =>
-		GroupSettingItem(group, containerEl, () => {
-			groupSettings.groups = groupSettings.groups.filter( (g) => g !== group);
+const GroupSettingsView = (groupSettings: State<GroupSettings>, containerEl: HTMLElement) => {
+	NodeGroups(groupSettings, containerEl);
+	AddNodeGroupButton(groupSettings, containerEl);
+
+	groupSettings.onChange((change: StateChange) => {
+		if (change.currentPath === "groups" && change.type === "add" || change.type === "delete") {
 			containerEl.empty();
-			GroupSettingsView(groupSettings, containerEl);
-		})
+			NodeGroups(groupSettings, containerEl);
+			AddNodeGroupButton(groupSettings, containerEl);
+		}
+	});
+}
+
+const NodeGroups = (groupSettings: State<GroupSettings>, containerEl: HTMLElement) => {
+	groupSettings.value.groups.forEach((group, index) => {
+			const groupState = groupSettings.createSubState(`value.groups.${index}`, NodeGroup);
+			GroupSettingItem(groupState, containerEl, () => {
+				groupSettings.value.groups.splice(index, 1);
+			})
+		}
 	)
+}
+
+const AddNodeGroupButton = (groupSettings: State<GroupSettings>, containerEl: HTMLElement) => {
 	new Setting(containerEl)
 		.addButton(
 			(button) => {
 				button.setButtonText("New Group")
+					.setClass("mod-cta")
 					.onClick(async () => {
-						groupSettings.groups.push(
+						groupSettings.value.groups.push(
 							new NodeGroup("", Graph3dPlugin.theme.textMuted)
 						);
 						containerEl.empty();
@@ -25,27 +44,24 @@ const GroupSettingsView = (groupSettings: GroupSettings, containerEl: HTMLElemen
 		)
 }
 
-const GroupSettingItem = (group: NodeGroup, containerEl: HTMLElement, onDelete: () => void) => {
-	new Setting(containerEl)
+
+const GroupSettingItem = (group: State<NodeGroup>, containerEl: HTMLElement, onDelete: () => void) => {
+	const nodeGroup = new Setting(containerEl)
 		.addText(
 			(text) => {
-				text.setValue(group.query)
+				text.setValue(group.value.query)
 					.onChange(
 						(value) => {
-							group.query = value;
+							group.value.query = value;
 						}
 					)
 			}
-		)
-		.addText(
-			(text) => {
-				text.setValue(group.color)
-					.onChange( (value) => {
-						group.color = value;
-					})
-			}
-		)
-		.addExtraButton(
+		);
+	nodeGroup.controlEl.appendChild(ColorPicker(group.value.color, (color) => {
+		group.value.color = color;
+	}));
+
+	nodeGroup.addExtraButton(
 			(button) => {
 				button.setIcon("minus")
 					.setTooltip("Delete Group")

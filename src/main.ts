@@ -5,6 +5,7 @@ import State from "./util/State";
 import Graph from "./graph/Graph";
 import {GraphFactory} from "./graph/GraphFactory";
 import ObsidianTheme from "./views/ObsidianTheme";
+import {NodeGroup} from "./settings/categories/GroupSettings";
 
 // Remember to rename these classes and interfaces!
 
@@ -66,7 +67,21 @@ export default class Graph3dPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const loadedData = await this.loadData() as GraphSettings,
+			defaultSettings = DEFAULT_SETTINGS;
+
+		if (loadedData.display) {
+			Object.assign(defaultSettings.display, loadedData.display);
+		}
+		if (loadedData.filters) {
+			Object.assign(defaultSettings.filters, loadedData.filters);
+		}
+		if (loadedData.groups?.groups) {
+			defaultSettings.groups.groups = loadedData.groups.groups.map((groupObj) =>
+				Object.assign(new NodeGroup("", ""), groupObj)
+			);
+		}
+		this.settings =  defaultSettings;
 	}
 
 	async saveSettings() {

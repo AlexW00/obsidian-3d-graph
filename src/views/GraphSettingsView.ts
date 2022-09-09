@@ -3,14 +3,17 @@ import FilterSettingsView from "./settings/FilterSettingsView";
 import DisplaySettingsView from "./settings/DisplaySettingsView";
 import Graph3dPlugin from "../main";
 import GroupSettingsView from "./settings/GroupSettingsView";
+import {FilterSettings} from "../settings/categories/FilterSettings";
+import {GroupSettings} from "../settings/categories/GroupSettings";
+import {DisplaySettings} from "../settings/categories/DisplaySettings";
 
 export class GraphSettingsView extends HTMLDivElement {
 
 	async connectedCallback() {
 		this.classList.add("graph-controls");
-		this.appendSetting(Graph3dPlugin.settingsState.value.filters, "Filters", FilterSettingsView);
-		this.appendSetting(Graph3dPlugin.settingsState.value.groups, "Groups", GroupSettingsView);
-		this.appendSetting(Graph3dPlugin.settingsState.value.display, "Display", DisplaySettingsView)
+		this.appendSetting(Graph3dPlugin.settingsState.createSubState("value.filters", FilterSettings), "Filters", FilterSettingsView);
+		this.appendSetting(Graph3dPlugin.settingsState.createSubState("value.groups", GroupSettings), "Groups", GroupSettingsView);
+		this.appendSetting(Graph3dPlugin.settingsState.createSubState("value.display", DisplaySettings), "Display", DisplaySettingsView)
 	}
 
 	private appendSetting<S>(setting: S, title: string, view: (setting: S, containerEl: HTMLElement) => void) {

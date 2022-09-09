@@ -1,13 +1,14 @@
 import {FilterSettings} from "../../settings/categories/FilterSettings";
 import {Setting} from "obsidian";
+import State from "../../util/State";
 
-const FilterSettingsView = (filterSettings: FilterSettings, containerEl: HTMLElement) => {
+const FilterSettingsView = (filterSettings: State<FilterSettings>, containerEl: HTMLElement) => {
 	new Setting(containerEl)
 		.setName("Show Orphans")
 		.addToggle((toggle) => {
-			toggle.setValue(filterSettings.doShowOrphans || false)
+			toggle.setValue(filterSettings.value.doShowOrphans || false)
 				.onChange(async (value) => {
-					filterSettings.doShowOrphans = value;
+					filterSettings.value.doShowOrphans = value;
 				});
 		});
 };

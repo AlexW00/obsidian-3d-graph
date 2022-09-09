@@ -1,55 +1,56 @@
 import {DisplaySettings} from "../../settings/categories/DisplaySettings";
 import SimpleSliderSetting, {DEFAULT_SLIDER_STEP_OPTIONS, SliderOptions} from "./SimpleSliderSetting";
+import State from "../../util/State";
 
-const DisplaySettingsView = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
+const DisplaySettingsView = (displaySettings: State<DisplaySettings>, containerEl: HTMLElement) => {
 	NodeSizeSetting(displaySettings, containerEl);
 	LinkThicknessSetting(displaySettings, containerEl);
 	ParticleSizeSetting(displaySettings, containerEl);
 	ParticleCountSetting(displaySettings, containerEl);
 }
 
-const NodeSizeSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
+const NodeSizeSetting = (displaySettings: State<DisplaySettings>, containerEl: HTMLElement) => {
 	const options: SliderOptions = {
 		name: "Node Size",
-		value: displaySettings.nodeSize,
+		value: displaySettings.value.nodeSize,
 		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS
 	}
 	return SimpleSliderSetting(containerEl, options, (value) => {
-		displaySettings.nodeSize = value;
+		displaySettings.value.nodeSize = value;
 	});
 }
 
-const LinkThicknessSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
+const LinkThicknessSetting = (displaySettings: State<DisplaySettings>, containerEl: HTMLElement) => {
 	const options: SliderOptions = {
 		name: "Link Thickness",
-		value: displaySettings.linkThickness,
+		value: displaySettings.value.linkThickness,
 		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS
 	};
 	return SimpleSliderSetting(containerEl, options, (value) => {
-		displaySettings.linkThickness = value;
+		displaySettings.value.linkThickness = value;
 	});
 }
 
-const ParticleSizeSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
+const ParticleSizeSetting = (displaySettings: State<DisplaySettings>, containerEl: HTMLElement) => {
 	const options: SliderOptions = {
 		name: "Particle Size",
-		value: displaySettings.particleSize,
+		value: displaySettings.value.particleSize,
 		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS
 	}
 	return SimpleSliderSetting(containerEl, options, (value) => {
-		displaySettings.particleSize = value;
+		displaySettings.value.particleSize = value;
 	});
 }
 
-const ParticleCountSetting = (displaySettings: DisplaySettings, containerEl: HTMLElement) => {
+const ParticleCountSetting = (displaySettings: State<DisplaySettings>, containerEl: HTMLElement) => {
 	const options: SliderOptions = {
 		name: "Particle Count",
-		value: displaySettings.particleCount,
+		value: displaySettings.value.particleCount,
 		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS
 
 	}
 	return SimpleSliderSetting(containerEl, options, (value) => {
-		displaySettings.particleCount = value;
+		displaySettings.value.particleCount = value;
 	});
 }
 
