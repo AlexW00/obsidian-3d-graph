@@ -1,5 +1,5 @@
 import {GroupSettings, NodeGroup} from "../../settings/categories/GroupSettings";
-import {Setting} from "obsidian";
+import {ButtonComponent, ExtraButtonComponent, Setting, TextComponent} from "obsidian";
 import Graph3dPlugin from "../../main";
 import State, {StateChange} from "../../util/State";
 import ColorPicker from "../atomics/ColorPicker";
@@ -18,9 +18,11 @@ const GroupSettingsView = (groupSettings: State<GroupSettings>, containerEl: HTM
 }
 
 const NodeGroups = (groupSettings: State<GroupSettings>, containerEl: HTMLElement) => {
+	containerEl.querySelector(".node-group-container")?.remove();
+	const nodeGroupContainerEl = containerEl.createDiv({cls: "graph-color-groups-container"});
 	groupSettings.value.groups.forEach((group, index) => {
 			const groupState = groupSettings.createSubState(`value.groups.${index}`, NodeGroup);
-			GroupSettingItem(groupState, containerEl, () => {
+			GroupSettingItem(groupState, nodeGroupContainerEl, () => {
 				groupSettings.value.groups.splice(index, 1);
 			})
 		}
@@ -28,46 +30,40 @@ const NodeGroups = (groupSettings: State<GroupSettings>, containerEl: HTMLElemen
 }
 
 const AddNodeGroupButton = (groupSettings: State<GroupSettings>, containerEl: HTMLElement) => {
-	new Setting(containerEl)
-		.addButton(
-			(button) => {
-				button.setButtonText("New Group")
-					.setClass("mod-cta")
-					.onClick(async () => {
-						groupSettings.value.groups.push(
-							new NodeGroup("", Graph3dPlugin.theme.textMuted)
-						);
-						containerEl.empty();
-						GroupSettingsView(groupSettings, containerEl);
-					});
-			}
-		)
+	containerEl.querySelector(".graph-color-button-container")?.remove();
+
+	const buttonContainer = containerEl.createDiv({cls: "graph-color-button-container"});
+	new ButtonComponent(buttonContainer)
+		.setClass("mod-cta")
+		.setButtonText("Add Group")
+		.onClick(() => {
+			groupSettings.value.groups.push(
+				new NodeGroup("", Graph3dPlugin.theme.textMuted)
+			);
+			containerEl.empty();
+			GroupSettingsView(groupSettings, containerEl);
+		})
 }
-
-
 const GroupSettingItem = (group: State<NodeGroup>, containerEl: HTMLElement, onDelete: () => void) => {
-	const nodeGroup = new Setting(containerEl)
-		.addText(
-			(text) => {
-				text.setValue(group.value.query)
-					.onChange(
-						(value) => {
-							group.value.query = value;
-						}
-					)
+	const groupEl = containerEl.createDiv({cls: "graph-color-group"});
+
+	new TextComponent(groupEl)
+		.setValue(group.value.query)
+		.onChange(
+			(value) => {
+				group.value.query = value;
 			}
 		);
-	nodeGroup.controlEl.appendChild(ColorPicker(group.value.color, (color) => {
-		group.value.color = color;
-	}));
 
-	nodeGroup.addExtraButton(
-			(button) => {
-				button.setIcon("minus")
-					.setTooltip("Delete Group")
-					.onClick(onDelete);
-			}
-		)
+	ColorPicker(groupEl, group.value.color, (value) => {
+		group.value.color = value;
+		}
+	);
+
+	new ExtraButtonComponent(groupEl)
+		.setIcon("cross")
+		.setTooltip("Delete Group")
+		.onClick(onDelete);
 }
 
 export default GroupSettingsView;

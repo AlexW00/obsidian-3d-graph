@@ -1,8 +1,9 @@
 import {Setting} from "obsidian";
 
 const SimpleSliderSetting = (containerEl: HTMLElement, options: SliderOptions, onChange: (newValue: number) => void) => {
-	new Setting(containerEl)
+	const slider = new Setting(containerEl)
 		.setName(options.name)
+		.setClass("mod-slider")
 		.addSlider(
 			(slider) => {
 				slider.setLimits(options.stepOptions.min, options.stepOptions.max, options.stepOptions.step)
@@ -12,6 +13,7 @@ const SimpleSliderSetting = (containerEl: HTMLElement, options: SliderOptions, o
 					});
 			}
 		)
+	return slider;
 }
 
 export interface SliderOptions {
