@@ -1,12 +1,12 @@
-import { App, Plugin, TAbstractFile} from 'obsidian';
-import {Graph3dView} from "./views/Graph3dView";
-import GraphSettings, {DEFAULT_SETTINGS} from "./settings/GraphSettings";
+import { App, Plugin, TAbstractFile } from "obsidian";
+import { Graph3dView } from "./views/Graph3dView";
+import GraphSettings, { DEFAULT_SETTINGS } from "./settings/GraphSettings";
 import State from "./util/State";
 import Graph from "./graph/Graph";
 import ObsidianTheme from "./views/ObsidianTheme";
-import {NodeGroup} from "./settings/categories/GroupSettings";
+import { NodeGroup } from "./settings/categories/GroupSettings";
 import EventBus from "./util/EventBus";
-import {ResolvedLinkCache} from "./graph/Link";
+import { ResolvedLinkCache } from "./graph/Link";
 import shallowCompare from "./util/ShallowCompare";
 
 export default class Graph3dPlugin extends Plugin {
@@ -17,7 +17,9 @@ export default class Graph3dPlugin extends Plugin {
 
 	// States
 	public static settingsState: State<GraphSettings>;
-	public static openFileState: State<string | undefined> = new State(undefined);
+	public static openFileState: State<string | undefined> = new State(
+		undefined
+	);
 
 	// Other properties
 	public static globalGraph: Graph;
@@ -26,7 +28,7 @@ export default class Graph3dPlugin extends Plugin {
 
 	async onload() {
 		await this.init();
-		this.addRibbonIcon("glasses", '3D Graph', this.openGlobalGraph);
+		this.addRibbonIcon("glasses", "3D Graph", this.openGlobalGraph);
 	}
 
 	private async init() {
@@ -42,21 +44,27 @@ export default class Graph3dPlugin extends Plugin {
 	}
 
 	private initListeners() {
-		this.callbackUnregisterHandles.push(Graph3dPlugin.settingsState.onChange(() => this.saveSettings()));
+		this.callbackUnregisterHandles.push(
+			Graph3dPlugin.settingsState.onChange(() => this.saveSettings())
+		);
 		EventBus.on("do-reset-settings", this.onDoResetSettings);
 
-		this.registerEvent(this.app.workspace.on('file-menu', (menu, file) => {
-			if (!file) return
-			menu.addItem((item) => {
-				item.setTitle('Open in local 3D Graph')
-					.setIcon('glasses')
-					.onClick(() => this.openLocalGraph(file));
-			});
-		}));
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file) => {
+				if (!file) return;
+				menu.addItem((item) => {
+					item.setTitle("Open in local 3D Graph")
+						.setIcon("glasses")
+						.onClick(() => this.openLocalGraph(file));
+				});
+			})
+		);
 
-		this.registerEvent(this.app.workspace.on('file-open', (file) => {
-			if (file) Graph3dPlugin.openFileState.value = file.path;
-		}));
+		this.registerEvent(
+			this.app.workspace.on("file-open", (file) => {
+				if (file) Graph3dPlugin.openFileState.value = file.path;
+			})
+		);
 
 		this.app.metadataCache.on("resolve", this.onGraphCacheChanged);
 	}
@@ -65,33 +73,40 @@ export default class Graph3dPlugin extends Plugin {
 		// check if the cache actually updated
 		// Obsidian API sends a lot of (for this plugin) unnecessary stuff
 		// with the resolve event
-		if (!shallowCompare(this._resolvedCache, this.app.metadataCache.resolvedLinks)) {
-			this._resolvedCache = structuredClone(this.app.metadataCache.resolvedLinks);
-			Graph3dPlugin.globalGraph = Graph.createFromApp(this.app)
+		if (
+			!shallowCompare(
+				this._resolvedCache,
+				this.app.metadataCache.resolvedLinks
+			)
+		) {
+			this._resolvedCache = structuredClone(
+				this.app.metadataCache.resolvedLinks
+			);
+			Graph3dPlugin.globalGraph = Graph.createFromApp(this.app);
 		}
-	}
+	};
 
 	private onDoResetSettings = () => {
 		Graph3dPlugin.settingsState.value.reset();
 		EventBus.trigger("did-reset-settings");
-	}
+	};
 
 	private openLocalGraph = (file: TAbstractFile) => {
 		Graph3dPlugin.openFileState.value = file.path;
 		this.openGraph(true);
-	}
+	};
 
 	private openGlobalGraph = () => {
 		this.openGraph(false);
-	}
+	};
 
-	private openGraph = (newLeaf: boolean) => {
-		const leaf = this.app.workspace.getLeaf(newLeaf);
-		leaf?.open(new Graph3dView(leaf));
-	}
+	private openGraph = (isLocalGraph: boolean) => {
+		const leaf = this.app.workspace.getLeaf(isLocalGraph);
+		leaf?.open(new Graph3dView(leaf, isLocalGraph));
+	};
 
 	private async loadSettings() {
-		const loadedData = await this.loadData() as GraphSettings,
+		const loadedData = (await this.loadData()) as GraphSettings,
 			defaultSettings = DEFAULT_SETTINGS();
 
 		// Has to be done this way in order to preserve the class structure
@@ -102,8 +117,8 @@ export default class Graph3dPlugin extends Plugin {
 			Object.assign(defaultSettings.filters, loadedData.filters);
 		}
 		if (loadedData.groups?.groups) {
-			defaultSettings.groups.groups = loadedData.groups.groups.map((groupObj) =>
-				Object.assign(new NodeGroup("", ""), groupObj)
+			defaultSettings.groups.groups = loadedData.groups.groups.map(
+				(groupObj) => Object.assign(new NodeGroup("", ""), groupObj)
 			);
 		}
 		this.settings = defaultSettings;
@@ -123,6 +138,3 @@ export default class Graph3dPlugin extends Plugin {
 		return Graph3dPlugin.settingsState.value;
 	}
 }
-
-
-
