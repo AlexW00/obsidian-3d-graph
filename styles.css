@@ -4,11 +4,48 @@
 }
 
 .graph-3d-view {
-	padding: 0;
-	overflow: hidden;
+	padding: 0 !important;
 	position: relative;
+	overflow: hidden !important;
 }
 
+.graph-3d-view .graph-controls.is-collapsed > .graph-control-section {
+	display: none;
+	visibility: hidden;
+}
+.graph-3d-view .graph-controls:hover > .control-buttons {
+	opacity: 0.5;
+}
+
+.graph-3d-view .graph-controls > .control-buttons:hover {
+	opacity: 1;
+}
+
+.graph-3d-view .graph-controls > .control-buttons {
+	float: right;
+	margin-right: 0;
+	opacity: 0;
+}
+
+.graph-3d-view .hidden {
+	display: none;
+	visibility: hidden;
+}
+
+.control-buttons {
+	display: block;
+}
+
+.control-buttons > * {
+	display: inline-block;
+	margin: 0;
+}
+
+.graph-3d-view .graph-settings-view > .clickable-icon {
+	position: absolute;
+	top: 8px;
+	left: 8px;
+}
 
 .graph-3d-view .node-label {
 	color: var(--text-normal);

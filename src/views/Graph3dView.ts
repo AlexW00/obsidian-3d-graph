@@ -49,10 +49,7 @@ export class Graph3dView extends ItemView {
 		const viewContent = this.getViewContent();
 
 		if (viewContent) {
-			this.forceGraph.set_dimensions(
-				this.containerEl.innerWidth,
-				this.containerEl.innerHeight
-			);
+			this.forceGraph.update_dimensions();
 		}
 	}
 

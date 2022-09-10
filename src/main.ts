@@ -39,7 +39,6 @@ export default class Graph3dPlugin extends Plugin {
 				item.setTitle('Open in 3D Graph')
 					.setIcon('move-3d')
 					.onClick(() => {
-
 						this.openLocalGraph(file);
 					});
 			});

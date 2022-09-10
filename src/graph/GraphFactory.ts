@@ -14,10 +14,6 @@ export abstract class GraphFactory {
 	}
 
 	static createForceGraph = (rootHtmlElement: HTMLElement, isLocalGraph: boolean) => {
-		const graphContainer = document.createElement("div");
-		graphContainer.style.width = "100%";
-		graphContainer.style.height = "100%";
-		rootHtmlElement.appendChild(graphContainer);
-		return new ForceGraph(graphContainer, isLocalGraph);
+		return new ForceGraph(rootHtmlElement, isLocalGraph);
 	}
 }

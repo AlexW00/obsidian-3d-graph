@@ -5,6 +5,7 @@ import {StateChange} from "../util/State";
 import Graph3dPlugin from "../main";
 import Graph from "./Graph";
 import {NodeGroup} from "../settings/categories/GroupSettings";
+import {rgba} from "polished";
 
 // Adapted from https://github.com/vasturiano/3d-force-graph/blob/master/example/highlight/index.html
 
@@ -27,7 +28,7 @@ export class ForceGraph {
 		this.createGraph();
 
 		Graph3dPlugin.settingsState.onChange(this.onSettingsStateChanged);
-		Graph3dPlugin.openFile.onChange(this.onOpenFileChanged);
+		if (isLocalGraph) Graph3dPlugin.openFile.onChange(this.onOpenFileChanged);
 	}
 
 	private createGraph() {
@@ -42,7 +43,7 @@ export class ForceGraph {
 			.graphData(this.getGraphData())
 			.nodeLabel((node: Node) => `<div class="node-label">${node.name}</div>`)
 			.nodeRelSize(Graph3dPlugin.getSettings().display.nodeSize)
-			.backgroundColor(Graph3dPlugin.theme.backgroundPrimary)
+			.backgroundColor(rgba(0, 0, 0, 0.0))
 			.width(width)
 			.height(height)
 	}
@@ -75,7 +76,11 @@ export class ForceGraph {
 	}
 
 	public update_dimensions() {
-		const [width, height] = [this.rootHtmlElement.innerWidth, this.rootHtmlElement.innerHeight];
+		console.log(this.rootHtmlElement);
+		const [width, height] = [this.rootHtmlElement.offsetWidth, this.rootHtmlElement.offsetHeight];
+		console.log(width, height, this.rootHtmlElement.offsetWidth, this.rootHtmlElement.offsetHeight, this.rootHtmlElement.innerWidth, this.rootHtmlElement.innerHeight, this.rootHtmlElement.clientWidth, this.rootHtmlElement.clientHeight);
+		// get width height with padding
+
 		this.set_dimensions(width, height);
 	}
 
