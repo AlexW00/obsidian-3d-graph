@@ -6,6 +6,7 @@ import Graph3dPlugin from "../main";
 import Graph from "./Graph";
 import {NodeGroup} from "../settings/categories/GroupSettings";
 import {rgba} from "polished";
+import EventBus from "../util/EventBus";
 
 // Adapted from https://github.com/vasturiano/3d-force-graph/blob/master/example/highlight/index.html
 
@@ -20,15 +21,20 @@ export class ForceGraph {
 
 	private readonly isLocalGraph: boolean;
 
-
 	constructor(rootHtmlElement: HTMLElement, isLocalGraph: boolean) {
 		this.rootHtmlElement = rootHtmlElement;
 		this.isLocalGraph = isLocalGraph;
 
 		this.createGraph();
 
+		this.initListeners();
+
+	}
+
+	private initListeners() {
 		Graph3dPlugin.settingsState.onChange(this.onSettingsStateChanged);
-		if (isLocalGraph) Graph3dPlugin.openFile.onChange(this.onOpenFileChanged);
+		if (this.isLocalGraph) Graph3dPlugin.openFileState.onChange(this.refreshGraphData);
+		EventBus.on("graph-changed", this.refreshGraphData);
 	}
 
 	private createGraph() {
@@ -49,13 +55,13 @@ export class ForceGraph {
 	}
 
 	private getGraphData = (): Graph => {
-		if (this.isLocalGraph && Graph3dPlugin.openFile.value) {
-			return Graph3dPlugin.globalGraph.clone().getLocalGraph(Graph3dPlugin.openFile.value);
+		if (this.isLocalGraph && Graph3dPlugin.openFileState.value) {
+			return Graph3dPlugin.globalGraph.clone().getLocalGraph(Graph3dPlugin.openFileState.value);
 		}
 		else return Graph3dPlugin.globalGraph.clone();
 	}
 
-	private onOpenFileChanged = () => {
+	private refreshGraphData = () => {
 		this.instance.graphData(this.getGraphData());
 	}
 
@@ -67,9 +73,6 @@ export class ForceGraph {
 			this.instance.linkWidth(data.newValue);
 		} else if (data.currentPath === "display.particleSize") {
 			this.instance.linkDirectionalParticleWidth(Graph3dPlugin.getSettings().display.particleSize)
-		} else if (data.currentPath === "groups.groups") {
-			// TODO
-			console.log("TODO: update groups");
 		}
 
 		this.instance.refresh(); // other settings only need a refresh
@@ -135,7 +138,8 @@ export class ForceGraph {
 		this.instance.linkWidth((link: Link) => this.highlightedLinks.has(link) ? Graph3dPlugin.getSettings().display.linkThickness * 1.5 : Graph3dPlugin.getSettings().display.linkThickness)
 			.linkDirectionalParticles((link: Link) => this.highlightedLinks.has(link) ? Graph3dPlugin.getSettings().display.particleCount : 0)
 			.linkDirectionalParticleWidth(Graph3dPlugin.getSettings().display.particleSize)
-			.onLinkHover(this.onLinkHover);
+			.onLinkHover(this.onLinkHover)
+			.linkColor((link: Link) => this.highlightedLinks.has(link) ? Graph3dPlugin.theme.interactiveAccent : Graph3dPlugin.theme.textMuted)
 	}
 
 	private onLinkHover = (link: Link | null) => {

@@ -1,5 +1,6 @@
 import Link from "./Link";
 import Node from "./Node";
+import {App} from "obsidian";
 
 export default class Graph {
 	nodes: Node[];
@@ -42,9 +43,21 @@ export default class Graph {
 		}
 	}
 
-	public clone(): Graph {
-		const clonedStruct = structuredClone(this);
-		return new Graph(clonedStruct.nodes, clonedStruct.links, clonedStruct.nodeIndex);
+	public clone = (): Graph => {
+		return new Graph(structuredClone(this.nodes), structuredClone(this.links), structuredClone(this.nodeIndex));
+	}
+
+	public static createFromApp = (app: App): Graph => {
+		const [nodes, nodeIndex] = Node.createFromFiles(app.vault.getFiles()),
+			links = Link.createFromCache(app.metadataCache.resolvedLinks, nodes, nodeIndex);
+		return new Graph(nodes, links, nodeIndex);
+	}
+
+	public update = (app: App) => {
+		const newGraph = Graph.createFromApp(app);
+		this.nodes = newGraph.nodes;
+		this.links = newGraph.links;
+		this.nodeIndex = newGraph.nodeIndex;
 	}
 
 }

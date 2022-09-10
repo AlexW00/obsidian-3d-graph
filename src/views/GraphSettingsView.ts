@@ -8,6 +8,7 @@ import {GroupSettings} from "../settings/categories/GroupSettings";
 import {DisplaySettings} from "../settings/categories/DisplaySettings";
 import {ExtraButtonComponent} from "obsidian";
 import State, {StateChange} from "../util/State";
+import EventBus from "../util/EventBus";
 
 export class GraphSettingsView extends HTMLDivElement {
 
@@ -16,8 +17,15 @@ export class GraphSettingsView extends HTMLDivElement {
 
 	private isCollapsedState = new State(true);
 
+	private callbackUnregisterHandles: (() => void)[] = [];
+
 	async connectedCallback() {
 		this.classList.add("graph-settings-view");
+
+		EventBus.on("did-reset-settings", () => {
+			this.disconnectedCallback();
+			this.connectedCallback();
+		})
 
 		this.settingsButton = new ExtraButtonComponent(this).setIcon("settings").setTooltip("Open graph settings").onClick(this.onSettingsButtonClicked);
 		this.graphControls = this.createDiv({cls: "graph-controls"});
@@ -28,7 +36,7 @@ export class GraphSettingsView extends HTMLDivElement {
 		this.appendSetting(Graph3dPlugin.settingsState.createSubState("value.groups", GroupSettings), "Groups", GroupSettingsView);
 		this.appendSetting(Graph3dPlugin.settingsState.createSubState("value.display", DisplaySettings), "Display", DisplaySettingsView)
 
-		this.isCollapsedState.onChange(this.onIsCollapsedChanged);
+		this.callbackUnregisterHandles.push(this.isCollapsedState.onChange(this.onIsCollapsedChanged));
 		this.toggleCollapsed(this.isCollapsedState.value);
 	}
 
@@ -61,9 +69,7 @@ export class GraphSettingsView extends HTMLDivElement {
 			.setIcon("eraser")
 			.setTooltip("Reset to default")
 			.onClick(
-				() => {
-					console.log("reset");
-				}
+				() => EventBus.trigger("do-reset-settings")
 			)
 	}
 
@@ -72,10 +78,7 @@ export class GraphSettingsView extends HTMLDivElement {
 			.setIcon("x")
 			.setTooltip("Close")
 			.onClick(
-				() => {
-					console.log("close");
-					this.isCollapsedState.value = true;
-				}
+				() => this.isCollapsedState.value = true
 			)
 	}
 
@@ -94,7 +97,8 @@ export class GraphSettingsView extends HTMLDivElement {
 	}
 
 	async disconnectedCallback() {
-		this.innerHTML = "";
+		this.empty();
+		this.callbackUnregisterHandles.forEach(handle => handle());
 	}
 
 }

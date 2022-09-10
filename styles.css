@@ -50,3 +50,8 @@
 .graph-3d-view .node-label {
 	color: var(--text-normal);
 }
+
+.graph-3d-view .scene-nav-info {
+	display: none;
+	visibility: hidden;
+}
