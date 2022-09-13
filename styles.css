@@ -32,11 +32,11 @@
 	visibility: hidden;
 }
 
-.control-buttons {
+.graph-3d-view .control-buttons {
 	display: block;
 }
 
-.control-buttons > * {
+.graph-3d-view .control-buttons > * {
 	display: inline-block;
 	margin: 0;
 }
