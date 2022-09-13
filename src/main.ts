@@ -1,4 +1,4 @@
-import { App, Plugin, TAbstractFile } from "obsidian";
+import { App, Plugin, TAbstractFile, WorkspaceLeaf } from "obsidian";
 import { Graph3dView } from "./views/Graph3dView";
 import GraphSettings, { DEFAULT_SETTINGS } from "./settings/GraphSettings";
 import State from "./util/State";
@@ -20,6 +20,8 @@ export default class Graph3dPlugin extends Plugin {
 	public static openFileState: State<string | undefined> = new State(
 		undefined
 	);
+	private static cacheIsReady: State<boolean> = new State(false);
+	private static queuedGraphs: [WorkspaceLeaf, boolean][] = [];
 
 	// Other properties
 	public static globalGraph: Graph;
@@ -66,14 +68,37 @@ export default class Graph3dPlugin extends Plugin {
 			})
 		);
 
+		this.callbackUnregisterHandles.push(
+			Graph3dPlugin.cacheIsReady.onChange((isReady) => {
+				if (isReady) {
+					this.openQueuedGraphs();
+				}
+			})
+		);
+
+		// all files resolved
+		this.app.metadataCache.on("resolved", this.onGraphCacheReady);
 		this.app.metadataCache.on("resolve", this.onGraphCacheChanged);
 	}
+
+	private openQueuedGraphs() {
+		Graph3dPlugin.queuedGraphs.forEach(([leaf, isLocalGraph]) => {
+			leaf?.open(new Graph3dView(leaf, isLocalGraph));
+		});
+		Graph3dPlugin.queuedGraphs = [];
+	}
+
+	private onGraphCacheReady = () => {
+		Graph3dPlugin.cacheIsReady.value = true;
+		this.onGraphCacheChanged();
+	};
 
 	private onGraphCacheChanged = () => {
 		// check if the cache actually updated
 		// Obsidian API sends a lot of (for this plugin) unnecessary stuff
 		// with the resolve event
 		if (
+			Graph3dPlugin.cacheIsReady.value &&
 			!shallowCompare(
 				this._resolvedCache,
 				this.app.metadataCache.resolvedLinks
@@ -102,7 +127,11 @@ export default class Graph3dPlugin extends Plugin {
 
 	private openGraph = (isLocalGraph: boolean) => {
 		const leaf = this.app.workspace.getLeaf(isLocalGraph);
-		leaf?.open(new Graph3dView(leaf, isLocalGraph));
+		if (Graph3dPlugin.cacheIsReady.value) {
+			leaf?.open(new Graph3dView(leaf, isLocalGraph));
+		} else {
+			Graph3dPlugin.queuedGraphs.push([leaf, isLocalGraph]);
+		}
 	};
 
 	private async loadSettings() {

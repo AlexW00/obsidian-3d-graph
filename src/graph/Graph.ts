@@ -7,11 +7,18 @@ export default class Graph {
 	links: Link[];
 
 	private nodeIndex: Map<string, number>;
+	private linkIndex: Map<string, Map<string, number>>;
 
-	constructor(nodes: Node[], links: Link[], nodeIndex: Map<string, number>) {
+	constructor(
+		nodes: Node[],
+		links: Link[],
+		nodeIndex: Map<string, number>,
+		linkIndex: Map<string, Map<string, number>>
+	) {
 		this.nodes = nodes;
 		this.links = links;
-		this.nodeIndex = nodeIndex;
+		this.nodeIndex = nodeIndex || new Map<string, number>();
+		this.linkIndex = linkIndex || new Map<string, Map<string, number>>();
 	}
 
 	getNodeById(id: string): Node | null {
@@ -20,6 +27,45 @@ export default class Graph {
 			return this.nodes[index];
 		}
 		return null;
+	}
+
+	getLinkByIds(sourceNodeId: string, targetNodeId: string): Link | null {
+		const sourceLinkMap = this.linkIndex.get(sourceNodeId);
+		if (sourceLinkMap) {
+			const index = sourceLinkMap.get(targetNodeId);
+			if (index !== undefined) {
+				return this.links[index];
+			}
+		}
+		return null;
+	}
+
+	getLinksFromNode(sourceNodeId: string): Link[] {
+		const sourceLinkMap = this.linkIndex.get(sourceNodeId);
+		if (sourceLinkMap) {
+			return Array.from(sourceLinkMap.values()).map(
+				(index) => this.links[index]
+			);
+		}
+		return [];
+	}
+
+	getLinksWithNode(nodeId: string): Link[] {
+		// we need to check if the link consists of a Node instance
+		// instead of just a string id,
+		// because D3 will replace each string id with the real Node instance
+		// once the graph is rendered
+		// @ts-ignore
+		if (this.links[0]?.source?.id) {
+			return this.links.filter(
+				// @ts-ignore
+				(link) => link.source.id === nodeId || link.target.id === nodeId
+			);
+		} else {
+			return this.links.filter(
+				(link) => link.source === nodeId || link.target === nodeId
+			);
+		}
 	}
 
 	// should only return at max 1 node
@@ -51,9 +97,11 @@ export default class Graph {
 					});
 			});
 
-			return new Graph(nodes, links, nodeIndex);
+			const linkIndex = Link.createLinkIndex(links);
+
+			return new Graph(nodes, links, nodeIndex, linkIndex);
 		} else {
-			return new Graph([], [], new Map<string, number>());
+			return new Graph([], [], new Map(), new Map());
 		}
 	}
 
@@ -74,7 +122,8 @@ export default class Graph {
 		return new Graph(
 			structuredClone(this.nodes),
 			structuredClone(this.links),
-			structuredClone(this.nodeIndex)
+			structuredClone(this.nodeIndex),
+			structuredClone(this.linkIndex)
 		);
 	};
 
@@ -84,8 +133,9 @@ export default class Graph {
 				app.metadataCache.resolvedLinks,
 				nodes,
 				nodeIndex
-			);
-		return new Graph(nodes, links, nodeIndex);
+			),
+			linkIndex = Link.createLinkIndex(links);
+		return new Graph(nodes, links, nodeIndex, linkIndex);
 	};
 
 	public update = (app: App) => {

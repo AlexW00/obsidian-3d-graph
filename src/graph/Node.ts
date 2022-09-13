@@ -44,11 +44,13 @@ export default class Node {
 
 	addNeighbor(neighbor: Node): Link | null {
 		if (!this.isNeighborOf(neighbor)) {
-			this.neighbors.push(neighbor);
 			const link = new Link(this.id, neighbor.id);
+			this.neighbors.push(neighbor);
 			this.addLink(link);
 
-			neighbor.addNeighbor(this);
+			neighbor.neighbors.push(this);
+			neighbor.addLink(link);
+
 			return link;
 		}
 		return null;

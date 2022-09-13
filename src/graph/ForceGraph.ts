@@ -19,6 +19,7 @@ export class ForceGraph {
 	hoveredNode: Node | null;
 
 	private readonly isLocalGraph: boolean;
+	private graph: Graph;
 
 	constructor(rootHtmlElement: HTMLElement, isLocalGraph: boolean) {
 		this.rootHtmlElement = rootHtmlElement;
@@ -59,16 +60,14 @@ export class ForceGraph {
 	}
 
 	private getGraphData = (): Graph => {
-		console.log("getGraphData");
 		if (this.isLocalGraph && Graph3dPlugin.openFileState.value) {
 			const graph = Graph3dPlugin.globalGraph
 				.clone()
 				.getLocalGraph(Graph3dPlugin.openFileState.value);
 			return graph;
 		}
-		const graph = Graph3dPlugin.globalGraph.clone();
-		console.log(graph);
-		return graph;
+		this.graph = Graph3dPlugin.globalGraph.clone();
+		return this.graph;
 	};
 
 	private refreshGraphData = () => {
@@ -76,7 +75,6 @@ export class ForceGraph {
 	};
 
 	private onSettingsStateChanged = (data: StateChange) => {
-		console.log("ForceGraph.onStateChanged", data);
 		if (data.currentPath === "display.nodeSize") {
 			this.instance.nodeRelSize(data.newValue);
 		} else if (data.currentPath === "display.linkWidth") {
@@ -91,23 +89,10 @@ export class ForceGraph {
 	};
 
 	public update_dimensions() {
-		console.log(this.rootHtmlElement);
 		const [width, height] = [
 			this.rootHtmlElement.offsetWidth,
 			this.rootHtmlElement.offsetHeight,
 		];
-		console.log(
-			width,
-			height,
-			this.rootHtmlElement.offsetWidth,
-			this.rootHtmlElement.offsetHeight,
-			this.rootHtmlElement.innerWidth,
-			this.rootHtmlElement.innerHeight,
-			this.rootHtmlElement.clientWidth,
-			this.rootHtmlElement.clientHeight
-		);
-		// get width height with padding
-
 		this.set_dimensions(width, height);
 	}
 
@@ -124,7 +109,7 @@ export class ForceGraph {
 	};
 
 	private getNodeColor = (node: Node): string => {
-		if (this.highlightedNodes.has(node.id)) {
+		if (this.isHighlightedNode(node)) {
 			// Node is highlighted
 			return node === this.hoveredNode
 				? Graph3dPlugin.theme.interactiveAccentHover
@@ -153,6 +138,7 @@ export class ForceGraph {
 			(node && this.hoveredNode === node)
 		)
 			return;
+
 		this.clearHighlights();
 
 		if (node) {
@@ -160,21 +146,31 @@ export class ForceGraph {
 			node.neighbors.forEach((neighbor) =>
 				this.highlightedNodes.add(neighbor.id)
 			);
-			node.links.forEach((link) => this.highlightedLinks.add(link));
+			this.graph
+				.getLinksWithNode(node.id)
+				.forEach((link) => this.highlightedLinks.add(link));
 		}
 		this.hoveredNode = node || null;
 		this.updateHighlight();
 	};
 
+	private isHighlightedLink = (link: Link): boolean => {
+		return this.highlightedLinks.has(link);
+	};
+
+	private isHighlightedNode = (node: Node): boolean => {
+		return this.highlightedNodes.has(node.id);
+	};
+
 	private createLinks = () => {
 		this.instance
 			.linkWidth((link: Link) =>
-				this.highlightedLinks.has(link)
+				this.isHighlightedLink(link)
 					? Graph3dPlugin.getSettings().display.linkThickness * 1.5
 					: Graph3dPlugin.getSettings().display.linkThickness
 			)
 			.linkDirectionalParticles((link: Link) =>
-				this.highlightedLinks.has(link)
+				this.isHighlightedLink(link)
 					? Graph3dPlugin.getSettings().display.particleCount
 					: 0
 			)
@@ -183,7 +179,7 @@ export class ForceGraph {
 			)
 			.onLinkHover(this.onLinkHover)
 			.linkColor((link: Link) =>
-				this.highlightedLinks.has(link)
+				this.isHighlightedLink(link)
 					? Graph3dPlugin.theme.interactiveAccent
 					: Graph3dPlugin.theme.textMuted
 			);

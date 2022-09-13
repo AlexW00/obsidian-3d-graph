@@ -11,6 +11,18 @@ export default class Link {
 		this.target = targetId;
 	}
 
+	static createLinkIndex(links: Link[]): Map<string, Map<string, number>> {
+		const linkIndex = new Map<string, Map<string, number>>();
+		links.forEach((link, index) => {
+			if (!linkIndex.has(link.source)) {
+				linkIndex.set(link.source, new Map<string, number>());
+			}
+			linkIndex.get(link.source)?.set(link.target, index);
+		});
+
+		return linkIndex;
+	}
+
 	static createFromCache(
 		cache: ResolvedLinkCache,
 		nodes: Node[],
@@ -34,6 +46,7 @@ export default class Link {
 						}
 						return null;
 					})
+					.flat()
 					.filter(
 						(link) => link !== null && link.source !== link.target
 					) as Link[];
