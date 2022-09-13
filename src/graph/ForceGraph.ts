@@ -59,13 +59,16 @@ export class ForceGraph {
 	}
 
 	private getGraphData = (): Graph => {
+		console.log("getGraphData");
 		if (this.isLocalGraph && Graph3dPlugin.openFileState.value) {
 			const graph = Graph3dPlugin.globalGraph
 				.clone()
 				.getLocalGraph(Graph3dPlugin.openFileState.value);
-			console.log("graph", graph);
 			return graph;
-		} else return Graph3dPlugin.globalGraph.clone();
+		}
+		const graph = Graph3dPlugin.globalGraph.clone();
+		console.log(graph);
+		return graph;
 	};
 
 	private refreshGraphData = () => {

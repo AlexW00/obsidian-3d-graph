@@ -31,12 +31,24 @@ export default class Graph {
 		const node = this.findNodeByPath(nodeId);
 		if (node) {
 			const nodes = [node, ...node.neighbors];
-
-			const links = node.links;
+			const links: Link[] = [];
 			const nodeIndex = new Map<string, number>();
 
 			nodes.forEach((node, index) => {
 				nodeIndex.set(node.id, index);
+			});
+
+			nodes.forEach((node, index) => {
+				node.links = node.links
+					.filter(
+						(link) =>
+							nodeIndex.has(link.target) &&
+							nodeIndex.has(link.source)
+					)
+					.map((link) => {
+						if (!links.includes(link)) links.push(link);
+						return link;
+					});
 			});
 
 			return new Graph(nodes, links, nodeIndex);

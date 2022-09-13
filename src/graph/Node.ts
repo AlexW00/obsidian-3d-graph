@@ -1,6 +1,5 @@
 import Link from "./Link";
 import { TFile } from "obsidian";
-import hash from "../util/Hash";
 
 export default class Node {
 	id: string;
@@ -18,7 +17,7 @@ export default class Node {
 		neighbors: Node[] = [],
 		links: Link[] = []
 	) {
-		this.id = hash(path);
+		this.id = path;
 		this.name = name;
 		this.path = path;
 		this.val = val;
@@ -43,10 +42,16 @@ export default class Node {
 		];
 	}
 
-	addNeighbor(neighbor: Node) {
+	addNeighbor(neighbor: Node): Link | null {
 		if (!this.isNeighborOf(neighbor)) {
 			this.neighbors.push(neighbor);
+			const link = new Link(this.id, neighbor.id);
+			this.addLink(link);
+
+			neighbor.addNeighbor(this);
+			return link;
 		}
+		return null;
 	}
 
 	addLink(link: Link) {
