@@ -1,5 +1,6 @@
 export type HtmlBuilder = (containerEl: HTMLElement) => void;
 
+// Collapsable tree item, imitates Obsidian's tree items
 export class TreeItem extends HTMLDivElement {
 	private readonly $inner: HTMLElement;
 	private readonly childrenBuilders: HtmlBuilder[];
@@ -47,7 +48,9 @@ export class TreeItem extends HTMLDivElement {
 }
 
 try {
-	customElements.define("tree-item", TreeItem, { extends: "div" });
+	if (customElements.get("tree-item") === undefined) {
+		customElements.define("tree-item", TreeItem, { extends: "div" });
+	}
 } catch (e) {
-	console.error(e);
+	// console.error(e);
 }

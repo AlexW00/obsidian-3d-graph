@@ -1,5 +1,4 @@
 export class DisplaySettings {
-	// graph options
 	nodeSize = 4;
 	linkThickness = 5;
 	particleSize = 6;

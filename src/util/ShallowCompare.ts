@@ -1,3 +1,4 @@
+// Shallow compare for nested objects
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const shallowCompare = (obj1: any, obj2: any): boolean => {
 	if (!obj1 || !obj2) return obj1 == obj2;

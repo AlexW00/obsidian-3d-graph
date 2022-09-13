@@ -59,10 +59,14 @@ export default class Graph3dPlugin extends Plugin {
 
 	private initListeners() {
 		this.callbackUnregisterHandles.push(
+			// save settings on change
 			Graph3dPlugin.settingsState.onChange(() => this.saveSettings())
 		);
+
+		// internal event to reset settings to default
 		EventBus.on("do-reset-settings", this.onDoResetSettings);
 
+		// show open local graph button in file menu
 		this.registerEvent(
 			this.app.workspace.on("file-menu", (menu, file) => {
 				if (!file) return;
@@ -74,6 +78,7 @@ export default class Graph3dPlugin extends Plugin {
 			})
 		);
 
+		// when a file gets opened, update the open file state
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) => {
 				if (file) Graph3dPlugin.openFileState.value = file.path;
@@ -81,6 +86,7 @@ export default class Graph3dPlugin extends Plugin {
 		);
 
 		this.callbackUnregisterHandles.push(
+			// when the cache is ready, open the queued graphs
 			Graph3dPlugin.cacheIsReady.onChange((isReady) => {
 				if (isReady) {
 					this.openQueuedGraphs();
@@ -88,11 +94,13 @@ export default class Graph3dPlugin extends Plugin {
 			})
 		);
 
-		// all files resolved
+		// all files are resolved, so the cache is ready:
 		this.app.metadataCache.on("resolved", this.onGraphCacheReady);
+		// the cache changed:
 		this.app.metadataCache.on("resolve", this.onGraphCacheChanged);
 	}
 
+	// opens all queued graphs (graphs get queued if cache isnt ready yet)
 	private openQueuedGraphs() {
 		Graph3dPlugin.queuedGraphs.forEach(([leaf, isLocalGraph]) => {
 			leaf?.open(new Graph3dView(leaf, isLocalGraph));
@@ -128,6 +136,7 @@ export default class Graph3dPlugin extends Plugin {
 		EventBus.trigger("did-reset-settings");
 	};
 
+	// Opens a local graph view in a new leaf
 	private openLocalGraph = () => {
 		const newFilePath = this.app.workspace.getActiveFile()?.path;
 
@@ -139,10 +148,12 @@ export default class Graph3dPlugin extends Plugin {
 		}
 	};
 
+	// Opens a global graph view in the current leaf
 	private openGlobalGraph = () => {
 		this.openGraph(false);
 	};
 
+	// Open a global or local graph
 	private openGraph = (isLocalGraph: boolean) => {
 		const leaf = this.app.workspace.getLeaf(isLocalGraph);
 		if (Graph3dPlugin.cacheIsReady.value) {
@@ -152,6 +163,7 @@ export default class Graph3dPlugin extends Plugin {
 		}
 	};
 
+	// Load the settings as a GraphSettings instance
 	private async loadSettings() {
 		const loadedData = (await this.loadData()) as GraphSettings,
 			defaultSettings = DEFAULT_SETTINGS();

@@ -3,11 +3,12 @@ import Node from "./Node";
 import { App } from "obsidian";
 
 export default class Graph {
-	nodes: Node[];
-	links: Link[];
+	public readonly nodes: Node[];
+	public readonly links: Link[];
 
-	private nodeIndex: Map<string, number>;
-	private linkIndex: Map<string, Map<string, number>>;
+	// Indexes to quickly retrieve nodes and links by id
+	private readonly nodeIndex: Map<string, number>;
+	private readonly linkIndex: Map<string, Map<string, number>>;
 
 	constructor(
 		nodes: Node[],
@@ -21,7 +22,8 @@ export default class Graph {
 		this.linkIndex = linkIndex || new Map<string, Map<string, number>>();
 	}
 
-	getNodeById(id: string): Node | null {
+	// Returns a node by its id
+	public getNodeById(id: string): Node | null {
 		const index = this.nodeIndex.get(id);
 		if (index !== undefined) {
 			return this.nodes[index];
@@ -29,7 +31,11 @@ export default class Graph {
 		return null;
 	}
 
-	getLinkByIds(sourceNodeId: string, targetNodeId: string): Link | null {
+	// Returns a link by its source and target node ids
+	public getLinkByIds(
+		sourceNodeId: string,
+		targetNodeId: string
+	): Link | null {
 		const sourceLinkMap = this.linkIndex.get(sourceNodeId);
 		if (sourceLinkMap) {
 			const index = sourceLinkMap.get(targetNodeId);
@@ -40,7 +46,8 @@ export default class Graph {
 		return null;
 	}
 
-	getLinksFromNode(sourceNodeId: string): Link[] {
+	// Returns the outgoing links of a node
+	public getLinksFromNode(sourceNodeId: string): Link[] {
 		const sourceLinkMap = this.linkIndex.get(sourceNodeId);
 		if (sourceLinkMap) {
 			return Array.from(sourceLinkMap.values()).map(
@@ -50,7 +57,8 @@ export default class Graph {
 		return [];
 	}
 
-	getLinksWithNode(nodeId: string): Link[] {
+	// Returns the outgoing and incoming links of a node
+	public getLinksWithNode(nodeId: string): Link[] {
 		// we need to check if the link consists of a Node instance
 		// instead of just a string id,
 		// because D3 will replace each string id with the real Node instance
@@ -68,13 +76,9 @@ export default class Graph {
 		}
 	}
 
-	// should only return at max 1 node
-	findNodeByPath(path: string): Node | undefined {
-		return this.nodes.find((node) => node.path === path);
-	}
-
+	// Returns the local graph of a node
 	public getLocalGraph(nodeId: string): Graph {
-		const node = this.findNodeByPath(nodeId);
+		const node = this.getNodeById(nodeId);
 		if (node) {
 			const nodes = [node, ...node.neighbors];
 			const links: Link[] = [];
@@ -85,7 +89,7 @@ export default class Graph {
 			});
 
 			nodes.forEach((node, index) => {
-				node.links = node.links
+				const filteredLinks = node.links
 					.filter(
 						(link) =>
 							nodeIndex.has(link.target) &&
@@ -100,6 +104,8 @@ export default class Graph {
 							links.push(link);
 						return link;
 					});
+
+				node.links.splice(0, node.links.length, ...filteredLinks);
 			});
 
 			const linkIndex = Link.createLinkIndex(links);
@@ -110,19 +116,7 @@ export default class Graph {
 		}
 	}
 
-	public removeUnresolved(): void {
-		this.nodes.forEach((node) => {
-			node.links = node.links.filter(
-				(link) =>
-					this.nodeIndex.has(link.target) &&
-					this.nodeIndex.has(link.source)
-			);
-			node.neighbors = node.neighbors.filter((neighbor) =>
-				this.nodeIndex.has(neighbor.id)
-			);
-		});
-	}
-
+	// Clones the graph
 	public clone = (): Graph => {
 		return new Graph(
 			structuredClone(this.nodes),
@@ -132,21 +126,32 @@ export default class Graph {
 		);
 	};
 
+	// Creates a graph using the Obsidian API
 	public static createFromApp = (app: App): Graph => {
 		const [nodes, nodeIndex] = Node.createFromFiles(app.vault.getFiles()),
-			links = Link.createFromCache(
+			[links, linkIndex] = Link.createFromCache(
 				app.metadataCache.resolvedLinks,
 				nodes,
 				nodeIndex
-			),
-			linkIndex = Link.createLinkIndex(links);
+			);
 		return new Graph(nodes, links, nodeIndex, linkIndex);
 	};
 
+	// updates this graph with new data from the Obsidian API
 	public update = (app: App) => {
 		const newGraph = Graph.createFromApp(app);
-		this.nodes = newGraph.nodes;
-		this.links = newGraph.links;
-		this.nodeIndex = newGraph.nodeIndex;
+
+		this.nodes.splice(0, this.nodes.length, ...newGraph.nodes);
+		this.links.splice(0, this.nodes.length, ...newGraph.links);
+
+		this.nodeIndex.clear();
+		newGraph.nodeIndex.forEach((value, key) => {
+			this.nodeIndex.set(key, value);
+		});
+
+		this.linkIndex.clear();
+		newGraph.linkIndex.forEach((value, key) => {
+			this.linkIndex.set(key, value);
+		});
 	};
 }

@@ -2,13 +2,13 @@ import Link from "./Link";
 import { TFile } from "obsidian";
 
 export default class Node {
-	id: string;
-	name: string;
-	path: string;
-	val: number; // = weight
+	public readonly id: string;
+	public readonly name: string;
+	public readonly path: string;
+	public readonly val: number; // = weight, currently = 1 because scaling doesn't work well
 
-	neighbors: Node[];
-	links: Link[];
+	public readonly neighbors: Node[];
+	public readonly links: Link[];
 
 	constructor(
 		name: string,
@@ -25,6 +25,7 @@ export default class Node {
 		this.links = links;
 	}
 
+	// Creates an array of nodes from an array of files (from the Obsidian API)
 	static createFromFiles(files: TFile[]): [Node[], Map<string, number>] {
 		const nodeMap = new Map<string, number>();
 		return [
@@ -42,6 +43,7 @@ export default class Node {
 		];
 	}
 
+	// Links together two nodes as neighbors (node -> neighbor)
 	addNeighbor(neighbor: Node): Link | null {
 		if (!this.isNeighborOf(neighbor)) {
 			const link = new Link(this.id, neighbor.id);
@@ -56,10 +58,18 @@ export default class Node {
 		return null;
 	}
 
+	// Pushes a link to the node's links array if it doesn't already exist
 	addLink(link: Link) {
-		this.links.push(link);
+		if (
+			!this.links.some(
+				(l) => l.source === link.source && l.target === link.target
+			)
+		) {
+			this.links.push(link);
+		}
 	}
 
+	// Whether the node is a neighbor of another node
 	public isNeighborOf(node: Node | string) {
 		if (node instanceof Node) return this.neighbors.includes(node);
 		else return this.neighbors.some((neighbor) => neighbor.id === node);

@@ -21,15 +21,11 @@ export class GraphSettingsView extends HTMLDivElement {
 	async connectedCallback() {
 		this.classList.add("graph-settings-view");
 
-		EventBus.on("did-reset-settings", () => {
-			this.disconnectedCallback();
-			this.connectedCallback();
-		});
-
 		this.settingsButton = new ExtraButtonComponent(this)
 			.setIcon("settings")
 			.setTooltip("Open graph settings")
 			.onClick(this.onSettingsButtonClicked);
+
 		this.graphControls = this.createDiv({ cls: "graph-controls" });
 
 		this.appendGraphControlsItems(
@@ -60,18 +56,28 @@ export class GraphSettingsView extends HTMLDivElement {
 			"Display",
 			DisplaySettingsView
 		);
-
-		this.callbackUnregisterHandles.push(
-			this.isCollapsedState.onChange(this.onIsCollapsedChanged)
-		);
+		this.initListeners();
 		this.toggleCollapsed(this.isCollapsedState.value);
 	}
 
+	private initListeners() {
+		EventBus.on("did-reset-settings", () => {
+			// Re append all settings
+			this.disconnectedCallback();
+			this.connectedCallback();
+		});
+		this.callbackUnregisterHandles.push(
+			this.isCollapsedState.onChange(this.onIsCollapsedChanged)
+		);
+	}
+
+	// clicked to collapse/expand
 	private onIsCollapsedChanged = (stateChange: StateChange) => {
 		const collapsed = stateChange.newValue;
 		this.toggleCollapsed(collapsed);
 	};
 
+	// toggle the view to collapsed or expanded
 	private toggleCollapsed(collapsed: boolean) {
 		if (collapsed) {
 			this.settingsButton.setDisabled(false);
@@ -105,6 +111,7 @@ export class GraphSettingsView extends HTMLDivElement {
 			.onClick(() => (this.isCollapsedState.value = true));
 	}
 
+	// utility function to append a setting
 	private appendSetting<S>(
 		setting: S,
 		title: string,
@@ -127,9 +134,11 @@ export class GraphSettingsView extends HTMLDivElement {
 }
 
 try {
-	customElements.define("graph-settings-view", GraphSettingsView, {
-		extends: "div",
-	});
+	if (customElements.get("graph-settings-view") == null) {
+		customElements.define("graph-settings-view", GraphSettingsView, {
+			extends: "div",
+		});
+	}
 } catch (e) {
-	console.error(e);
+	// console.error(e);
 }

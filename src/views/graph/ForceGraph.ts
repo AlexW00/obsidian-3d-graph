@@ -9,6 +9,7 @@ import { rgba } from "polished";
 import EventBus from "../../util/EventBus";
 
 // Adapted from https://github.com/vasturiano/3d-force-graph/blob/master/example/highlight/index.html
+// D3.js 3D Force Graph
 
 export class ForceGraph {
 	private instance: ForceGraph3DInstance;
@@ -126,7 +127,6 @@ export class ForceGraph {
 	};
 
 	private doShowNode = (node: Node) => {
-		// if (this.rootFile.value) return node.isNeighborOf(this.rootFile.value) || node.id === this.rootFile.value;
 		return (
 			Graph3dPlugin.getSettings().filters.doShowOrphans ||
 			node.links.length > 0

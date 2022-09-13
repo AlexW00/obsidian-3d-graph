@@ -31,4 +31,3 @@ export class NodeGroup {
 		else return trimmedQuery;
 	}
 }
-
