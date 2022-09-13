@@ -28,29 +28,41 @@ export default class Link {
 		nodes: Node[],
 		nodeIndex: Map<string, number>
 	): Link[] {
-		return Object.keys(cache)
-			.map((node1Id) => {
-				return Object.keys(cache[node1Id])
-					.map((node2Id) => {
-						const [node1Index, node2Index] = [
-							nodeIndex.get(node1Id),
-							nodeIndex.get(node2Id),
-						];
-						if (
-							node1Index !== undefined &&
-							node2Index !== undefined
-						) {
-							return nodes[node1Index].addNeighbor(
-								nodes[node2Index]
-							);
-						}
-						return null;
-					})
-					.flat()
-					.filter(
-						(link) => link !== null && link.source !== link.target
-					) as Link[];
-			})
-			.flat();
+		return (
+			Object.keys(cache)
+				.map((node1Id) => {
+					return Object.keys(cache[node1Id])
+						.map((node2Id) => {
+							const [node1Index, node2Index] = [
+								nodeIndex.get(node1Id),
+								nodeIndex.get(node2Id),
+							];
+							if (
+								node1Index !== undefined &&
+								node2Index !== undefined
+							) {
+								return nodes[node1Index].addNeighbor(
+									nodes[node2Index]
+								);
+							}
+							return null;
+						})
+						.flat();
+				})
+				.flat()
+				// remove duplicates and nulls
+				.filter(
+					(link, index, self) =>
+						link &&
+						link.source !== link.target &&
+						index ===
+							self.findIndex(
+								(l: Link | null) =>
+									l &&
+									l.source === link.source &&
+									l.target === link.target
+							)
+				) as Link[]
+		);
 	}
 }

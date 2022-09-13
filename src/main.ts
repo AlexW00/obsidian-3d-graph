@@ -1,4 +1,4 @@
-import { App, Plugin, TAbstractFile, WorkspaceLeaf } from "obsidian";
+import { App, Notice, Plugin, WorkspaceLeaf } from "obsidian";
 import { Graph3dView } from "./views/graph/Graph3dView";
 import GraphSettings, { DEFAULT_SETTINGS } from "./settings/GraphSettings";
 import State from "./util/State";
@@ -32,6 +32,17 @@ export default class Graph3dPlugin extends Plugin {
 	async onload() {
 		await this.init();
 		this.addRibbonIcon("glasses", "3D Graph", this.openGlobalGraph);
+		this.addCommand({
+			id: "open-3d-graph-global",
+			name: "Open Global 3D Graph",
+			callback: this.openGlobalGraph,
+		});
+
+		this.addCommand({
+			id: "open-3d-graph-local",
+			name: "Open Local 3D Graph",
+			callback: this.openLocalGraph,
+		});
 	}
 
 	private async init() {
@@ -58,7 +69,7 @@ export default class Graph3dPlugin extends Plugin {
 				menu.addItem((item) => {
 					item.setTitle("Open in local 3D Graph")
 						.setIcon("glasses")
-						.onClick(() => this.openLocalGraph(file));
+						.onClick(() => this.openLocalGraph());
 				});
 			})
 		);
@@ -117,9 +128,15 @@ export default class Graph3dPlugin extends Plugin {
 		EventBus.trigger("did-reset-settings");
 	};
 
-	private openLocalGraph = (file: TAbstractFile) => {
-		Graph3dPlugin.openFileState.value = file.path;
-		this.openGraph(true);
+	private openLocalGraph = () => {
+		const newFilePath = this.app.workspace.getActiveFile()?.path;
+
+		if (newFilePath) {
+			Graph3dPlugin.openFileState.value = newFilePath;
+			this.openGraph(true);
+		} else {
+			new Notice("No file is currently open");
+		}
 	};
 
 	private openGlobalGraph = () => {

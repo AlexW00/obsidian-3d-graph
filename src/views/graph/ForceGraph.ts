@@ -61,12 +61,13 @@ export class ForceGraph {
 
 	private getGraphData = (): Graph => {
 		if (this.isLocalGraph && Graph3dPlugin.openFileState.value) {
-			const graph = Graph3dPlugin.globalGraph
+			this.graph = Graph3dPlugin.globalGraph
 				.clone()
 				.getLocalGraph(Graph3dPlugin.openFileState.value);
-			return graph;
+		} else {
+			this.graph = Graph3dPlugin.globalGraph.clone();
 		}
-		this.graph = Graph3dPlugin.globalGraph.clone();
+
 		return this.graph;
 	};
 
@@ -146,9 +147,10 @@ export class ForceGraph {
 			node.neighbors.forEach((neighbor) =>
 				this.highlightedNodes.add(neighbor.id)
 			);
-			this.graph
-				.getLinksWithNode(node.id)
-				.forEach((link) => this.highlightedLinks.add(link));
+			const nodeLinks = this.graph.getLinksWithNode(node.id);
+
+			if (nodeLinks)
+				nodeLinks.forEach((link) => this.highlightedLinks.add(link));
 		}
 		this.hoveredNode = node || null;
 		this.updateHighlight();

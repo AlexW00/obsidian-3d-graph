@@ -92,7 +92,12 @@ export default class Graph {
 							nodeIndex.has(link.source)
 					)
 					.map((link) => {
-						if (!links.includes(link)) links.push(link);
+						if (
+							!links.includes(link) &&
+							nodeIndex.has(link.target) &&
+							nodeIndex.has(link.source)
+						)
+							links.push(link);
 						return link;
 					});
 			});
