@@ -46,6 +46,7 @@ built-in plugin manager. However, there are other ways to install it:
             </li>
         </ol>
 </details>
+
 ### 👨‍💻 Development
 
 The plugin is written in TypeScript and uses D3.js for the graph rendering.
