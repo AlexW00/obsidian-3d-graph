@@ -1,11 +1,9 @@
-import {ItemView, WorkspaceLeaf} from "obsidian";
-import {GraphFactory} from "../graph/GraphFactory";
-import Node from "../graph/Node";
-import {ForceGraph} from "../graph/ForceGraph";
-import {GraphSettingsView} from "./GraphSettingsView";
+import { ItemView, WorkspaceLeaf } from "obsidian";
+import Node from "../../graph/Node";
+import { ForceGraph } from "./ForceGraph";
+import { GraphSettingsView } from "../settings/GraphSettingsView";
 
 export class Graph3dView extends ItemView {
-
 	private forceGraph: ForceGraph;
 	private readonly isLocalGraph: boolean;
 
@@ -33,7 +31,6 @@ export class Graph3dView extends ItemView {
 		super.onunload();
 		console.log("Unloading 3D Graph");
 		this.forceGraph.getInstance()._destructor();
-		//this.forceGraph = null;
 	}
 
 	getDisplayText(): string {
@@ -53,27 +50,29 @@ export class Graph3dView extends ItemView {
 		}
 	}
 
-	private getViewContent () : HTMLElement | null {
+	private getViewContent(): HTMLElement | null {
 		return this.containerEl.querySelector<HTMLElement>(".view-content");
 	}
 
-	private appendGraph (viewContent: HTMLElement) {
-		this.forceGraph = GraphFactory.createForceGraph(viewContent, this.isLocalGraph);
+	private appendGraph(viewContent: HTMLElement) {
+		this.forceGraph = new ForceGraph(viewContent, this.isLocalGraph);
 
-		this.forceGraph.getInstance().onNodeClick((node: Node, mouseEvent: MouseEvent) => {
-			const clickedNodeFile = this.app.vault
-				.getFiles()
-				.find((f) => f.path === node.path);
+		this.forceGraph
+			.getInstance()
+			.onNodeClick((node: Node, mouseEvent: MouseEvent) => {
+				const clickedNodeFile = this.app.vault
+					.getFiles()
+					.find((f) => f.path === node.path);
 
-			if (clickedNodeFile) {
-				if (this.isLocalGraph) {
-					this.app.workspace
-						.getLeaf(false)
-						.openFile(clickedNodeFile);
-				} else {
-					this.leaf.openFile(clickedNodeFile);
+				if (clickedNodeFile) {
+					if (this.isLocalGraph) {
+						this.app.workspace
+							.getLeaf(false)
+							.openFile(clickedNodeFile);
+					} else {
+						this.leaf.openFile(clickedNodeFile);
+					}
 				}
-			}
-		})
+			});
 	}
 }

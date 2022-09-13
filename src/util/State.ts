@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import ObservableSlim from "observable-slim";
 
 // ====================================================== //
@@ -6,11 +7,10 @@ import ObservableSlim from "observable-slim";
 
 // Wrapper class to make any object/primitive observable
 
-
 export type StateListener = (changeData: StateChange) => void;
 
 export default class State<T> {
-	private readonly listeners = new Map<number, StateListener>;
+	private readonly listeners = new Map<number, StateListener>();
 	private static listener_count = 0;
 
 	private val: ProxyConstructor | T;
@@ -53,13 +53,18 @@ export default class State<T> {
 		]);
 	}
 
-	public onChange = (callback: (change: StateChange) => void ) :  (() => void ) => {
+	public onChange = (
+		callback: (change: StateChange) => void
+	): (() => void) => {
 		const listenerId = this.generateListenerId();
 		this.listeners.set(listenerId, callback);
 		return () => this.unsubscribe(listenerId); // return unsubscribe function
-	}
+	};
 
-	public createSubState <S> (key: string, type: new (...a: never) => S): State<S> {
+	public createSubState<S>(
+		key: string,
+		type: new (...a: never) => S
+	): State<S> {
 		const subStateKeys = key.split("."),
 			subStateValue: S = subStateKeys.reduce((obj: any, key: string) => {
 				const val = obj[key];
@@ -74,13 +79,14 @@ export default class State<T> {
 				// @ts-ignore
 				return new State(subStateValue.__getTarget);
 			} else {
-				throw new Error (
+				throw new Error(
 					`Substate ${key} of state ${this.id} is not of type ${type.name}`
-				)
+				);
 			}
-		} else throw new Error(
-			"SubStates of properties that are Primitives are not supported yet."
-		);
+		} else
+			throw new Error(
+				"SubStates of properties that are Primitives are not supported yet."
+			);
 	}
 
 	public getRawValue(): T {
@@ -94,15 +100,15 @@ export default class State<T> {
 	private generateListenerId = () => {
 		State.listener_count++;
 		return State.listener_count;
-	}
+	};
 
 	private unsubscribe = (listenerId: number) => {
 		this.listeners.delete(listenerId);
-	}
+	};
 
 	private notifyAll = (changeData: StateChange) => {
 		this.listeners.forEach((listener) => listener(changeData));
-	}
+	};
 
 	private onValueChange = (changes: StateChange[]) => {
 		changes.forEach((change) => {

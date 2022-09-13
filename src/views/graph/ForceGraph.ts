@@ -1,12 +1,12 @@
 import ForceGraph3D, { ForceGraph3DInstance } from "3d-force-graph";
-import Node from "./Node";
-import Link from "./Link";
-import { StateChange } from "../util/State";
-import Graph3dPlugin from "../main";
-import Graph from "./Graph";
-import { NodeGroup } from "../settings/categories/GroupSettings";
+import Node from "../../graph/Node";
+import Link from "../../graph/Link";
+import { StateChange } from "../../util/State";
+import Graph3dPlugin from "../../main";
+import Graph from "../../graph/Graph";
+import { NodeGroup } from "../../settings/categories/GroupSettings";
 import { rgba } from "polished";
-import EventBus from "../util/EventBus";
+import EventBus from "../../util/EventBus";
 
 // Adapted from https://github.com/vasturiano/3d-force-graph/blob/master/example/highlight/index.html
 

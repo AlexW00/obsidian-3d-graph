@@ -1,9 +1,9 @@
 import { App, Plugin, TAbstractFile, WorkspaceLeaf } from "obsidian";
-import { Graph3dView } from "./views/Graph3dView";
+import { Graph3dView } from "./views/graph/Graph3dView";
 import GraphSettings, { DEFAULT_SETTINGS } from "./settings/GraphSettings";
 import State from "./util/State";
 import Graph from "./graph/Graph";
-import ObsidianTheme from "./views/ObsidianTheme";
+import ObsidianTheme from "./util/ObsidianTheme";
 import { NodeGroup } from "./settings/categories/GroupSettings";
 import EventBus from "./util/EventBus";
 import { ResolvedLinkCache } from "./graph/Link";
@@ -21,11 +21,12 @@ export default class Graph3dPlugin extends Plugin {
 		undefined
 	);
 	private static cacheIsReady: State<boolean> = new State(false);
-	private static queuedGraphs: [WorkspaceLeaf, boolean][] = [];
 
 	// Other properties
 	public static globalGraph: Graph;
 	public static theme: ObsidianTheme;
+	// Graphs that are waiting for cache to be ready
+	private static queuedGraphs: [WorkspaceLeaf, boolean][] = [];
 	private callbackUnregisterHandles: (() => void)[] = [];
 
 	async onload() {
