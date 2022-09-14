@@ -169,13 +169,13 @@ export default class Graph3dPlugin extends Plugin {
 			defaultSettings = DEFAULT_SETTINGS();
 
 		// Has to be done this way in order to preserve the class structure
-		if (loadedData.display) {
+		if (loadedData?.display) {
 			Object.assign(defaultSettings.display, loadedData.display);
 		}
-		if (loadedData.filters) {
+		if (loadedData?.filters) {
 			Object.assign(defaultSettings.filters, loadedData.filters);
 		}
-		if (loadedData.groups?.groups) {
+		if (loadedData?.groups?.groups) {
 			defaultSettings.groups.groups = loadedData.groups.groups.map(
 				(groupObj) => Object.assign(new NodeGroup("", ""), groupObj)
 			);
