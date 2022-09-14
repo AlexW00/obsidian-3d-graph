@@ -4,7 +4,7 @@ A 3D Graph for Obsidian
 
 ### Showcase:
 
-![showcase](docs/res/showcase.gif)
+https://user-images.githubusercontent.com/55558407/190087315-8386feee-b861-4520-bb94-19051c7a46c4.mp4
 
 ### ⬇️ Installation
 
