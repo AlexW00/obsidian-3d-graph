@@ -18,7 +18,7 @@ built-in plugin manager. However, there are other ways to install it:
                 Install the <a href="https://obsidian.md/plugins?id=plugins-galore">Plugin Galore</a> Obsidian plugin, which allows loading unofficial plugins.
             </li>
             <li>
-            Follow the instructions on the <a href="https://github.com/plugins-galore/obsidian-plugins-galore#adding-a-plugin">Plugins Galore GitHub</a> to install Note Linker.
+            Follow the instructions on the <a href="https://github.com/plugins-galore/obsidian-plugins-galore#adding-a-plugin">Plugins Galore GitHub</a> to install 3D Graph.
             </li>
         </ol>
     </details>
@@ -42,7 +42,7 @@ built-in plugin manager. However, there are other ways to install it:
                 </span>            
             </li>
             <li>
-            Enable the plugin by going to <code>Obsidian > settings > community plugins > installed plugins</code> and activating the toggle under "Note Linker" (you may need to re-open Obsidian to see the toggle).
+            Enable the plugin by going to <code>Obsidian > settings > community plugins > installed plugins</code> and activating the toggle under "3D Graph" (you may need to re-open Obsidian to see the toggle).
             </li>
         </ol>
 </details>
