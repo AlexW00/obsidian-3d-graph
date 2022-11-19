@@ -44,7 +44,7 @@
 .graph-3d-view .graph-settings-view > .clickable-icon {
 	position: absolute;
 	top: 8px;
-	left: 8px;
+	right: 8px;
 }
 
 .graph-3d-view .node-label {

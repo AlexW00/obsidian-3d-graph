@@ -1,6 +1,5 @@
 import { TreeItem } from "../atomics/TreeItem";
 import DisplaySettingsView from "./categories/DisplaySettingsView";
-import Graph3dPlugin from "../../main";
 import { FilterSettings } from "../../settings/categories/FilterSettings";
 import { GroupSettings } from "../../settings/categories/GroupSettings";
 import { DisplaySettings } from "../../settings/categories/DisplaySettings";
@@ -9,10 +8,20 @@ import State, { StateChange } from "../../util/State";
 import EventBus from "../../util/EventBus";
 import GroupSettingsView from "./categories/GroupSettingsView";
 import FilterSettingsView from "./categories/FilterSettingsView";
+import GraphSettings from "src/settings/GraphSettings";
+import ObsidianTheme from "src/util/ObsidianTheme";
 
 export class GraphSettingsView extends HTMLDivElement {
-	settingsButton: ExtraButtonComponent;
-	graphControls: HTMLDivElement;
+	private settingsButton: ExtraButtonComponent;
+	private graphControls: HTMLDivElement;
+	private readonly settingsState: State<GraphSettings>;
+	private readonly theme: ObsidianTheme;
+
+	constructor(settingsState: State<GraphSettings>, theme: ObsidianTheme) {
+		super();
+		this.settingsState = settingsState;
+		this.theme = theme;
+	}
 
 	private isCollapsedState = new State(true);
 
@@ -33,26 +42,17 @@ export class GraphSettingsView extends HTMLDivElement {
 		);
 
 		this.appendSetting(
-			Graph3dPlugin.settingsState.createSubState(
-				"value.filters",
-				FilterSettings
-			),
+			this.settingsState.createSubState("value.filters", FilterSettings),
 			"Filters",
 			FilterSettingsView
 		);
 		this.appendSetting(
-			Graph3dPlugin.settingsState.createSubState(
-				"value.groups",
-				GroupSettings
-			),
+			this.settingsState.createSubState("value.groups", GroupSettings),
 			"Groups",
-			GroupSettingsView
+			(...args) => GroupSettingsView(...args, this.theme)
 		);
 		this.appendSetting(
-			Graph3dPlugin.settingsState.createSubState(
-				"value.display",
-				DisplaySettings
-			),
+			this.settingsState.createSubState("value.display", DisplaySettings),
 			"Display",
 			DisplaySettingsView
 		);
@@ -89,6 +89,7 @@ export class GraphSettingsView extends HTMLDivElement {
 	}
 
 	private onSettingsButtonClicked = () => {
+		console.log("settings button clicked");
 		this.isCollapsedState.value = !this.isCollapsedState.value;
 	};
 

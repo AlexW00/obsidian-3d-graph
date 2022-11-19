@@ -1,12 +1,12 @@
 {
 	"name": "3d-graph",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "A 3D graph for Obsidian",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"build:copy": "npm run build && ./copy_to_vault.sh ~/Desktop/Obs",
+		"build:copy": "npm run build && ./copy_to_vault.sh ~/Desktop/YouTube",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
 	"keywords": [],

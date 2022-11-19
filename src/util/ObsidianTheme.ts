@@ -9,15 +9,14 @@ export default class ObsidianTheme {
 	backgroundModifierSuccess: string;
 	backgroundModifierError: string;
 
-	textAccent: string;
-	textAccentHover: string;
+	colorAccent: string;
+	interactiveAccentHover: string;
 
 	textNormal: string;
 	textMuted: string;
 	textFaint: string;
 
-	interactiveAccent: string;
-	interactiveAccentHover: string;
+	textAccent: string;
 
 	// some others missing, but not needed currently
 
@@ -45,11 +44,8 @@ export default class ObsidianTheme {
 			.getPropertyValue("--background-modifier-error")
 			.trim();
 
-		this.textAccent = getComputedStyle(root)
-			.getPropertyValue("--text-accent")
-			.trim();
-		this.textAccentHover = getComputedStyle(root)
-			.getPropertyValue("--text-accent-hover")
+		this.colorAccent = getComputedStyle(root)
+			.getPropertyValue("--color-accent")
 			.trim();
 
 		this.textNormal = getComputedStyle(root)
@@ -62,8 +58,8 @@ export default class ObsidianTheme {
 			.getPropertyValue("--text-faint")
 			.trim();
 
-		this.interactiveAccent = getComputedStyle(root)
-			.getPropertyValue("--interactive-accent")
+		this.textAccent = getComputedStyle(root)
+			.getPropertyValue("--text-accent")
 			.trim();
 		this.interactiveAccentHover = getComputedStyle(root)
 			.getPropertyValue("--interactive-accent-hover")

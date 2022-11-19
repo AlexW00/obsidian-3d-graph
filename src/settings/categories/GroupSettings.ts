@@ -4,7 +4,17 @@ export class GroupSettings {
 	groups: NodeGroup[] = [];
 
 	constructor(groups?: NodeGroup[]) {
-		this.groups = groups || this.groups;
+		this.groups = groups ?? this.groups;
+	}
+
+	public static fromStore(store: any) {
+		return new GroupSettings(store?.groups);
+	}
+
+	public toObject() {
+		return {
+			groups: this.groups,
+		};
 	}
 }
 

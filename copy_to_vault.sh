@@ -29,5 +29,6 @@ echo "Copying new plugin files to $vault"
 cp ./manifest.json "$plugin_path"
 cp ./styles.css "$plugin_path"
 cp ./main.js "$plugin_path"
+touch "$plugin_path"/.hotreload
 
 echo "Done"

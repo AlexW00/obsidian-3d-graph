@@ -1,18 +1,19 @@
 import { ButtonComponent, ExtraButtonComponent, TextComponent } from "obsidian";
-import Graph3dPlugin from "src/main";
 import {
 	GroupSettings,
 	NodeGroup,
 } from "src/settings/categories/GroupSettings";
+import ObsidianTheme from "src/util/ObsidianTheme";
 import State, { StateChange } from "src/util/State";
 import ColorPicker from "src/views/atomics/ColorPicker";
 
 const GroupSettingsView = (
 	groupSettings: State<GroupSettings>,
-	containerEl: HTMLElement
+	containerEl: HTMLElement,
+	theme: ObsidianTheme
 ) => {
 	NodeGroups(groupSettings, containerEl);
-	AddNodeGroupButton(groupSettings, containerEl);
+	AddNodeGroupButton(groupSettings, containerEl, theme);
 
 	groupSettings.onChange((change: StateChange) => {
 		if (
@@ -21,7 +22,7 @@ const GroupSettingsView = (
 		) {
 			containerEl.empty();
 			NodeGroups(groupSettings, containerEl);
-			AddNodeGroupButton(groupSettings, containerEl);
+			AddNodeGroupButton(groupSettings, containerEl, theme);
 		}
 	});
 };
@@ -47,7 +48,8 @@ const NodeGroups = (
 
 const AddNodeGroupButton = (
 	groupSettings: State<GroupSettings>,
-	containerEl: HTMLElement
+	containerEl: HTMLElement,
+	theme: ObsidianTheme
 ) => {
 	containerEl.querySelector(".graph-color-button-container")?.remove();
 
@@ -58,11 +60,9 @@ const AddNodeGroupButton = (
 		.setClass("mod-cta")
 		.setButtonText("Add Group")
 		.onClick(() => {
-			groupSettings.value.groups.push(
-				new NodeGroup("", Graph3dPlugin.theme.textMuted)
-			);
+			groupSettings.value.groups.push(new NodeGroup("", theme.textMuted));
 			containerEl.empty();
-			GroupSettingsView(groupSettings, containerEl);
+			GroupSettingsView(groupSettings, containerEl, theme);
 		});
 };
 const GroupSettingItem = (

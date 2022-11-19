@@ -2,35 +2,45 @@ import { ItemView, WorkspaceLeaf } from "obsidian";
 import Node from "../../graph/Node";
 import { ForceGraph } from "./ForceGraph";
 import { GraphSettingsView } from "../settings/GraphSettingsView";
+import Graph3dPlugin from "src/main";
 
 export class Graph3dView extends ItemView {
 	private forceGraph: ForceGraph;
 	private readonly isLocalGraph: boolean;
+	private readonly plugin: Graph3dPlugin;
 
-	constructor(leaf: WorkspaceLeaf, isLocalGraph = false) {
+	constructor(
+		plugin: Graph3dPlugin,
+		leaf: WorkspaceLeaf,
+		isLocalGraph = false
+	) {
 		super(leaf);
 		this.isLocalGraph = isLocalGraph;
+		this.plugin = plugin;
 	}
 
-	onload() {
-		super.onload();
-		const viewContent = this.getViewContent();
+	onunload() {
+		super.onunload();
+		this.forceGraph?.getInstance()._destructor();
+	}
+
+	showGraph() {
+		const viewContent = this.containerEl.querySelector(
+			".view-content"
+		) as HTMLElement;
 
 		if (viewContent) {
 			viewContent.classList.add("graph-3d-view");
 			this.appendGraph(viewContent);
 
-			const settings = new GraphSettingsView();
+			const settings = new GraphSettingsView(
+				this.plugin.settingsState,
+				this.plugin.theme
+			);
 			viewContent.appendChild(settings);
 		} else {
 			console.error("Could not find view content");
 		}
-	}
-
-	onunload() {
-		super.onunload();
-		console.log("Unloading 3D Graph");
-		this.forceGraph.getInstance()._destructor();
 	}
 
 	getDisplayText(): string {
@@ -43,19 +53,15 @@ export class Graph3dView extends ItemView {
 
 	onResize() {
 		super.onResize();
-		const viewContent = this.getViewContent();
-
-		if (viewContent) {
-			this.forceGraph.update_dimensions();
-		}
-	}
-
-	private getViewContent(): HTMLElement | null {
-		return this.containerEl.querySelector<HTMLElement>(".view-content");
+		this.forceGraph.updateDimensions();
 	}
 
 	private appendGraph(viewContent: HTMLElement) {
-		this.forceGraph = new ForceGraph(viewContent, this.isLocalGraph);
+		this.forceGraph = new ForceGraph(
+			this.plugin,
+			viewContent,
+			this.isLocalGraph
+		);
 
 		this.forceGraph
 			.getInstance()
