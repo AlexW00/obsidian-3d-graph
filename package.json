@@ -1,6 +1,6 @@
 {
 	"name": "3d-graph",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "A 3D graph for Obsidian",
 	"main": "main.js",
 	"scripts": {
