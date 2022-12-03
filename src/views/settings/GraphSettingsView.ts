@@ -134,12 +134,8 @@ export class GraphSettingsView extends HTMLDivElement {
 	}
 }
 
-try {
-	if (customElements.get("graph-settings-view") == null) {
-		customElements.define("graph-settings-view", GraphSettingsView, {
-			extends: "div",
-		});
-	}
-} catch (e) {
-	// console.error(e);
+if (typeof customElements.get("graph-settings-view") === "undefined") {
+	customElements.define("graph-settings-view", GraphSettingsView, {
+		extends: "div",
+	});
 }

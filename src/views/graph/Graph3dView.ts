@@ -32,7 +32,6 @@ export class Graph3dView extends ItemView {
 		if (viewContent) {
 			viewContent.classList.add("graph-3d-view");
 			this.appendGraph(viewContent);
-
 			const settings = new GraphSettingsView(
 				this.plugin.settingsState,
 				this.plugin.theme

@@ -47,10 +47,6 @@ export class TreeItem extends HTMLDivElement {
 	};
 }
 
-try {
-	if (customElements.get("tree-item") === undefined) {
-		customElements.define("tree-item", TreeItem, { extends: "div" });
-	}
-} catch (e) {
-	// console.error(e);
+if (typeof customElements.get("tree-item") === "undefined") {
+	customElements.define("tree-item", TreeItem, { extends: "div" });
 }

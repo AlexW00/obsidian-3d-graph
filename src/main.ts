@@ -14,7 +14,9 @@ export default class Graph3dPlugin extends Plugin {
 	// States
 	public settingsState: State<GraphSettings>;
 	public openFileState: State<string | undefined> = new State(undefined);
-	private cacheIsReady: State<boolean> = new State(false);
+	private cacheIsReady: State<boolean> = new State(
+		this.app.metadataCache.resolvedLinks !== undefined
+	);
 
 	// Other properties
 	public globalGraph: Graph;
@@ -48,6 +50,9 @@ export default class Graph3dPlugin extends Plugin {
 		const settings = await this.loadSettings();
 		this.settingsState = new State<GraphSettings>(settings);
 		this.theme = new ObsidianTheme(this.app.workspace.containerEl);
+		this.cacheIsReady.value =
+			this.app.metadataCache.resolvedLinks !== undefined;
+		this.onGraphCacheChanged();
 	}
 
 	private initListeners() {
@@ -106,6 +111,7 @@ export default class Graph3dPlugin extends Plugin {
 	}
 
 	private onGraphCacheReady = () => {
+		console.log("Graph cache is ready");
 		this.cacheIsReady.value = true;
 		this.onGraphCacheChanged();
 	};
@@ -125,6 +131,16 @@ export default class Graph3dPlugin extends Plugin {
 				this.app.metadataCache.resolvedLinks
 			);
 			this.globalGraph = Graph.createFromApp(this.app);
+		} else {
+			console.log(
+				"changed but ",
+				this.cacheIsReady.value,
+				" and ",
+				shallowCompare(
+					this._resolvedCache,
+					this.app.metadataCache.resolvedLinks
+				)
+			);
 		}
 	};
 
@@ -165,8 +181,6 @@ export default class Graph3dPlugin extends Plugin {
 	private async loadSettings(): Promise<GraphSettings> {
 		const loadedData = await this.loadData(),
 			settings = GraphSettings.fromStore(loadedData);
-		console.log("Loaded settings", settings);
-		console.log("From data", loadedData);
 		return settings;
 	}
 
