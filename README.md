@@ -10,7 +10,7 @@ https://user-images.githubusercontent.com/55558407/190087315-8386feee-b861-4520-
 
 3D-Graph is an official community plugin. You can download by: 
 - clicking [here](https://obsidian.md/plugins?id=3d-graph)
-- searching for "3D-Graph" in the Obsidian plugins tab
+- searching for "3D Graph" in the Obsidian plugins tab
 
 ### 👨‍💻 Development
 
