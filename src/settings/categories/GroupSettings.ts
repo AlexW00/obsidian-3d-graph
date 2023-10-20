@@ -32,7 +32,8 @@ export class NodeGroup {
 	}
 
 	static matches(query: string, node: Node): boolean {
-		return node.path.startsWith(this.sanitizeQuery(query));
+		return node.path.startsWith(this.sanitizeQuery(query)) ||
+		node.tags.includes(query);
 	}
 
 	static sanitizeQuery(query: string): string {

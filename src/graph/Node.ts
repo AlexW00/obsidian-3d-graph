@@ -1,5 +1,5 @@
 import Link from "./Link";
-import { TFile } from "obsidian";
+import { TFile, getAllTags } from "obsidian";
 
 export default class Node {
 	public readonly id: string;
@@ -9,13 +9,15 @@ export default class Node {
 
 	public readonly neighbors: Node[];
 	public readonly links: Link[];
+	public readonly tags: string[];
 
 	constructor(
 		name: string,
 		path: string,
 		val = 10,
 		neighbors: Node[] = [],
-		links: Link[] = []
+		links: Link[] = [],
+		tags: string[] = []
 	) {
 		this.id = path;
 		this.name = name;
@@ -23,6 +25,7 @@ export default class Node {
 		this.val = val;
 		this.neighbors = neighbors;
 		this.links = links;
+		this.tags = tags;
 	}
 
 	// Creates an array of nodes from an array of files (from the Obsidian API)
@@ -32,6 +35,11 @@ export default class Node {
 			files
 				.map((file, index) => {
 					const node = new Node(file.name, file.path);
+					const cache = app.metadataCache.getFileCache(file),
+						tags = cache ? getAllTags(cache) : null;
+					if (tags != null) {
+						tags.forEach((tag) => node.tags.push(tag));
+					}
 					if (!nodeMap.has(node.id)) {
 						nodeMap.set(node.id, index);
 						return node;
