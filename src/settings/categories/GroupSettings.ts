@@ -32,8 +32,11 @@ export class NodeGroup {
 	}
 
 	static matches(query: string, node: Node): boolean {
-		return node.path.startsWith(this.sanitizeQuery(query)) ||
-		node.tags.includes(query);
+		// queries tags if query begins with "tag:" or "tag:#"
+		if (query.match(/^tag:#?/)) {
+			return node.tags.includes(query.replace(/^tag:#?/, "")) 
+		}
+		return node.path.startsWith(this.sanitizeQuery(query))
 	}
 
 	static sanitizeQuery(query: string): string {

@@ -38,7 +38,8 @@ export default class Node {
 					const cache = app.metadataCache.getFileCache(file),
 						tags = cache ? getAllTags(cache) : null;
 					if (tags != null) {
-						tags.forEach((tag) => node.tags.push(tag));
+						// stores tags without leading octothorpe `#` as ["tag1", "tag2", ...]
+						tags.forEach((tag) => node.tags.push(tag.substring(1)));
 					}
 					if (!nodeMap.has(node.id)) {
 						nodeMap.set(node.id, index);
