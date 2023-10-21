@@ -143,6 +143,10 @@ export class ForceGraph {
 		);
 	};
 
+	private doShowLink = (link: Link) => {
+		return this.plugin.getSettings().filters.doShowAttachments || !link.linksAnAttachment
+	}
+
 	private onNodeHover = (node: Node | null) => {
 		if (
 			(!node && !this.highlightedNodes.size) ||
@@ -189,6 +193,7 @@ export class ForceGraph {
 			.linkDirectionalParticleWidth(
 				this.plugin.getSettings().display.particleSize
 			)
+			.linkVisibility(this.doShowLink)
 			.onLinkHover(this.onLinkHover)
 			.linkColor((link: Link) =>
 				this.isHighlightedLink(link)
