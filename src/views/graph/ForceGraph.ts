@@ -136,10 +136,10 @@ export class ForceGraph {
 
 	private doShowNode = (node: Node) => {
 		return (
-			this.plugin.getSettings().filters.doShowOrphans ||
-			node.links.length > 0 &&
-			this.plugin.getSettings().filters.doShowAttachments ||
-			!node.isAttachment
+			(this.plugin.getSettings().filters.doShowOrphans ||
+			node.links.length > 0) &&
+			(this.plugin.getSettings().filters.doShowAttachments ||
+			!node.isAttachment)
 		);
 	};
 
