@@ -13,6 +13,13 @@ const FilterSettingsView = (
 				filterSettings.value.doShowOrphans = value;
 			});
 	});
+	new Setting(containerEl).setName("Show Attachments").addToggle((toggle) => {
+		toggle
+			.setValue(filterSettings.value.doShowAttachments || false)
+			.onChange(async (value) => {
+				filterSettings.value.doShowAttachments = value;
+			});
+	});
 };
 
 export default FilterSettingsView;
