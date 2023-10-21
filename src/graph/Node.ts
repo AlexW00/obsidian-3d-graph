@@ -58,7 +58,7 @@ export default class Node {
 	// Links together two nodes as neighbors (node -> neighbor)
 	addNeighbor(neighbor: Node): Link | null {
 		if (!this.isNeighborOf(neighbor)) {
-			const link = new Link(this.id, neighbor.id);
+			const link = new Link(this.id, neighbor.id, this.isAttachment || neighbor.isAttachment);
 			this.neighbors.push(neighbor);
 			this.addLink(link);
 
