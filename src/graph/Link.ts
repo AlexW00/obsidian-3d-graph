@@ -5,10 +5,12 @@ export type ResolvedLinkCache = Record<string, Record<string, number>>;
 export default class Link {
 	public readonly source: string;
 	public readonly target: string;
+	public readonly linksAnAttachment: boolean;
 
-	constructor(sourceId: string, targetId: string) {
+	constructor(sourceId: string, targetId: string, linksAnAttachment: boolean) {
 		this.source = sourceId;
 		this.target = targetId;
+		this.linksAnAttachment = linksAnAttachment;
 	}
 
 	// Creates a link index for an array of links

@@ -136,10 +136,16 @@ export class ForceGraph {
 
 	private doShowNode = (node: Node) => {
 		return (
-			this.plugin.getSettings().filters.doShowOrphans ||
-			node.links.length > 0
+			(this.plugin.getSettings().filters.doShowOrphans ||
+			node.links.length > 0) &&
+			(this.plugin.getSettings().filters.doShowAttachments ||
+			!node.isAttachment)
 		);
 	};
+
+	private doShowLink = (link: Link) => {
+		return this.plugin.getSettings().filters.doShowAttachments || !link.linksAnAttachment
+	}
 
 	private onNodeHover = (node: Node | null) => {
 		if (
@@ -187,6 +193,7 @@ export class ForceGraph {
 			.linkDirectionalParticleWidth(
 				this.plugin.getSettings().display.particleSize
 			)
+			.linkVisibility(this.doShowLink)
 			.onLinkHover(this.onLinkHover)
 			.linkColor((link: Link) =>
 				this.isHighlightedLink(link)
