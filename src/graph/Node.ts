@@ -5,6 +5,7 @@ export default class Node {
 	public readonly id: string;
 	public readonly name: string;
 	public readonly path: string;
+	public readonly isAttachment: boolean;
 	public readonly val: number; // = weight, currently = 1 because scaling doesn't work well
 
 	public readonly neighbors: Node[];
@@ -14,6 +15,7 @@ export default class Node {
 	constructor(
 		name: string,
 		path: string,
+		isAttachment: boolean,
 		val = 10,
 		neighbors: Node[] = [],
 		links: Link[] = [],
@@ -22,6 +24,7 @@ export default class Node {
 		this.id = path;
 		this.name = name;
 		this.path = path;
+		this.isAttachment = isAttachment;
 		this.val = val;
 		this.neighbors = neighbors;
 		this.links = links;
@@ -34,7 +37,7 @@ export default class Node {
 		return [
 			files
 				.map((file, index) => {
-					const node = new Node(file.name, file.path);
+					const node = new Node(file.name, file.path, file.extension == "md" ? false : true);
 					const cache = app.metadataCache.getFileCache(file),
 						tags = cache ? getAllTags(cache) : null;
 					if (tags != null) {
@@ -55,7 +58,7 @@ export default class Node {
 	// Links together two nodes as neighbors (node -> neighbor)
 	addNeighbor(neighbor: Node): Link | null {
 		if (!this.isNeighborOf(neighbor)) {
-			const link = new Link(this.id, neighbor.id);
+			const link = new Link(this.id, neighbor.id, this.isAttachment || neighbor.isAttachment);
 			this.neighbors.push(neighbor);
 			this.addLink(link);
 
