@@ -1,5 +1,5 @@
 import { ButtonComponent, Setting } from "obsidian";
-import { DisplaySettings } from "../../../settings/categories/DisplaySettings";
+import { DisplaySettings, LinkStyle } from "../../../settings/categories/DisplaySettings";
 import SimpleSliderSetting from "../../atomics/SimpleSliderSetting";
 import State from "../../../util/State";
 
@@ -7,7 +7,9 @@ type NumberKey =
 	| "nodeSize"
 	| "linkThickness"
 	| "particleSize"
-	| "particleCount"
+	| "motesPerLink"
+	| "particleSpeed"
+	| "particleArc"
 	| "textFade";
 
 const DisplaySettingsView = (
@@ -35,9 +37,20 @@ const DisplaySettingsView = (
 	toggle("Labels", "showLabels");
 	slider("Text fade threshold", "textFade", -3, 3, 0.1);
 	slider("Node size", "nodeSize", 1, 20, 1);
+
+	new Setting(containerEl).setName("Links").addDropdown((dropdown) =>
+		dropdown
+			.addOptions({ lines: "Lines", particles: "Particles", both: "Lines + particles" })
+			.setValue(display.linkStyle)
+			.onChange((value) => {
+				displaySettings.value.linkStyle = value as LinkStyle;
+			})
+	);
 	slider("Link thickness", "linkThickness", 1, 10, 0.5);
-	slider("Particle count", "particleCount", 0, 10, 1);
+	slider("Particles per link", "motesPerLink", 1, 40, 1);
 	slider("Particle size", "particleSize", 0.5, 8, 0.5);
+	slider("Particle speed", "particleSpeed", 1, 10, 0.5);
+	slider("Particle spread", "particleArc", 0, 1, 0.05);
 
 	if (onAnimate) {
 		const buttonContainer = containerEl.createDiv({ cls: "graph-control-animate" });

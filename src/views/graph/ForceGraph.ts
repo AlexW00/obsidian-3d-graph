@@ -13,6 +13,7 @@ import ObsidianTheme from "../../util/ObsidianTheme";
 import { compileQuery, isEmptyQuery, Matcher, unsupportedSyntax } from "../../graph/Search";
 import { clusterColor, clusterInto } from "../../graph/Clusters";
 import { brokenLinkKey } from "../../settings/categories/FilterSettings";
+import { MoteField, MoteStyle } from "./MoteField";
 
 // a cluster needs at least this many notes to get a color
 const MIN_CLUSTER_SIZE = 2;
@@ -85,6 +86,9 @@ export class ForceGraph {
 	private filterTimer = 0;
 	private animationTimer = 0;
 	private readonly unsubscribers: (() => void)[] = [];
+	private motes: MoteField | null = null;
+	private moteFrame = 0;
+	private lastFrameTime = 0;
 
 	constructor(
 		plugin: Graph3dPlugin,
@@ -96,6 +100,7 @@ export class ForceGraph {
 		this.plugin = plugin;
 
 		this.createGraph();
+		this.startMotes();
 		// after the graph: the renderer clears its container when it starts
 		this.legendEl = this.rootHtmlElement.createDiv({ cls: "graph-3d-cluster-legend" });
 		this.initListeners();
@@ -136,6 +141,8 @@ export class ForceGraph {
 	public destroy() {
 		this.unsubscribers.forEach((unsubscribe) => unsubscribe());
 		this.unsubscribers.length = 0;
+		window.cancelAnimationFrame(this.moteFrame);
+		this.motes?.dispose();
 		this.legendEl?.remove();
 		this.instance._destructor();
 	}
@@ -716,6 +723,7 @@ export class ForceGraph {
 		this.instance.graphData(graph);
 		this.applyForces();
 		this.rebuildLabels();
+		this.resetMotes();
 	}
 
 	// the vault changed: rebuild, but keep the camera where it is
@@ -781,6 +789,7 @@ export class ForceGraph {
 						present.has(endpointId(l.target))
 				),
 			});
+			this.resetMotes();
 			if (count < files.length)
 				this.animationTimer = window.setTimeout(step, 60);
 			else {
@@ -831,14 +840,14 @@ export class ForceGraph {
 			this.rebuildLabels();
 		} else if (path === "display.showLabels" || path === "display.textFade") {
 			this.rebuildLabels();
-		} else if (path === "display.particleSize") {
-			this.instance.linkDirectionalParticleWidth(data.newValue);
 		}
 
+		if (path.startsWith("display.")) this.resetMotes();
 		this.updateHighlight(); // re-evaluate colors, widths and arrows
 	};
 
 	private onThemeChanged = () => {
+		this.resetMotes();
 		this.rebuildLabels();
 		this.updateHighlight();
 	};
@@ -1075,34 +1084,117 @@ export class ForceGraph {
 		return this.highlightedNodes.has(node.id);
 	};
 
+	// ====================== Motes ====================== //
+
+	private get isDarkTheme() {
+		const m = this.theme.backgroundPrimary.match(/\d+(\.\d+)?/g);
+		if (!m) return true;
+		const [r, g, b] = m.map(Number);
+		return 0.299 * r + 0.587 * g + 0.114 * b < 128;
+	}
+
+	private readonly moteStyle: MoteStyle = {
+		count: () => this.display.motesPerLink,
+		colors: (link: Link) => {
+			if (this.isHighlightedLink(link))
+				return [this.theme.interactiveAccentHover, this.theme.textAccent];
+			const node = (end: string | Node) =>
+				typeof end === "string" ? undefined : (end as Node);
+			const s = node(link.source);
+			const t = node(link.target);
+			const fallback = this.theme.textMuted;
+			return [s ? this.moteColor(s) : fallback, t ? this.moteColor(t) : fallback];
+		},
+		brightness: (link: Link) => {
+			const highlighted = this.isHighlightedLink(link);
+			// in lines mode, motes only show on the hovered links
+			if (!this.alwaysParticles) return highlighted ? 1 : 0;
+			if (this.hasHighlight()) return highlighted ? 1 : 0.08;
+			return 0.9;
+		},
+		size: 0,
+		speed: 0,
+		spread: 0,
+		additive: true,
+	};
+
+	// node colors for motes, asked for every frame, so cached until the
+	// graph, settings, theme or highlight change
+	private readonly moteColors = new Map<string, string>();
+	private moteColor(node: Node): string {
+		let color = this.moteColors.get(node.id);
+		if (color === undefined) {
+			color = this.baseColor(node);
+			this.moteColors.set(node.id, color);
+		}
+		return color;
+	}
+
+	private refreshMoteStyle() {
+		this.moteColors.clear();
+		this.moteStyle.size = this.display.particleSize * 4.5;
+		this.moteStyle.speed = this.display.particleSpeed * 0.06;
+		this.moteStyle.spread = this.display.particleArc;
+		this.moteStyle.additive = this.isDarkTheme;
+	}
+
+	private startMotes() {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		this.motes = new MoteField(this.instance.scene() as any);
+		this.resetMotes();
+		const frame = (now: number) => {
+			const dt = this.lastFrameTime ? Math.min(0.05, (now - this.lastFrameTime) / 1000) : 0;
+			this.lastFrameTime = now;
+			// nothing to draw while the view is in a background tab or minimized
+			const shown = !document.hidden && this.rootHtmlElement.offsetParent !== null;
+			if (shown)
+				this.motes?.update(dt, this.moteStyle, this.rootHtmlElement.offsetHeight || 600);
+			this.moteFrame = window.requestAnimationFrame(frame);
+		};
+		this.moteFrame = window.requestAnimationFrame(frame);
+	}
+
+	// lay motes out again for the links on screen
+	private resetMotes() {
+		this.refreshMoteStyle();
+		this.motes?.clearColors();
+		this.motes?.setLinks(this.instance.graphData().links as Link[], this.moteStyle);
+	}
+
 	// ====================== Links ====================== //
+
+	private get showLines() {
+		return this.display.linkStyle !== "particles";
+	}
+
+	private get alwaysParticles() {
+		return this.display.linkStyle !== "lines";
+	}
 
 	private createLinks = () => {
 		this.instance
-			.linkWidth((link: Link) =>
-				this.isHighlightedLink(link)
+			.linkWidth((link: Link) => {
+				if (!this.showLines) return 0;
+				return this.isHighlightedLink(link)
 					? this.display.linkThickness * 0.6
-					: this.display.linkThickness * 0.2
-			)
+					: this.display.linkThickness * 0.2;
+			})
 			.linkResolution(8)
 			.linkOpacity(1)
+			// straight links: motes draw their own arcs (see MoteField)
 			.linkDirectionalArrowLength(() =>
 				this.showArrows ? 2 + this.display.linkThickness : 0
 			)
 			.linkDirectionalArrowRelPos(1)
 			.linkDirectionalArrowColor(this.getArrowColor)
-			// particles flow along the hovered links
-			.linkDirectionalParticles((link: Link) =>
-				this.isHighlightedLink(link) ? this.display.particleCount : 0
-			)
-			.linkDirectionalParticleWidth(this.display.particleSize)
-			.linkDirectionalParticleColor(() => this.theme.textAccent)
+			.linkDirectionalParticles(0)
 			.onLinkHover(this.onLinkHover)
 			.linkColor(this.getLinkColor);
 	};
 
 	private getLinkColor = (link: Link): string => {
 		const theme = this.theme;
+		if (!this.showLines) return "rgba(0, 0, 0, 0)";
 		if (this.isHighlightedLink(link))
 			return ObsidianTheme.withAlpha(theme.textAccent, 0.9);
 		return ObsidianTheme.withAlpha(
@@ -1122,7 +1214,7 @@ export class ForceGraph {
 	};
 
 	private onLinkHover = (link: Link | null) => {
-		if (this.hoveredNode) return; // nodes take precedence
+		if (this.hoveredNode || !this.showLines) return; // nodes take precedence
 		this.clearHighlights();
 
 		if (link) {
@@ -1139,6 +1231,7 @@ export class ForceGraph {
 	};
 
 	private updateHighlight() {
+		this.moteColors.clear();
 		this.labels.forEach((sprite, id) => this.applyLabelHighlight(id, sprite));
 		// re-setting the accessors makes three-forcegraph re-evaluate them
 		this.instance
@@ -1147,7 +1240,7 @@ export class ForceGraph {
 			.linkWidth(this.instance.linkWidth())
 			.linkDirectionalArrowLength(this.instance.linkDirectionalArrowLength())
 			.linkDirectionalArrowColor(this.instance.linkDirectionalArrowColor())
-			.linkDirectionalParticles(this.instance.linkDirectionalParticles());
+			;
 	}
 
 	getInstance(): ForceGraph3DInstance {
