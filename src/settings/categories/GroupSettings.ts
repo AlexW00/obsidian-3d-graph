@@ -7,12 +7,14 @@ export class GroupSettings {
 		this.groups = groups ?? this.groups;
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	public static fromStore(store: any) {
 		return new GroupSettings(
-			store?.groups.flatMap((nodeGroup: any) => {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(store?.groups ?? []).flatMap((nodeGroup: any) => {
 				return new NodeGroup(nodeGroup.query, nodeGroup.color);
 			})
-		)
+		);
 	}
 
 	public toObject() {
@@ -36,6 +38,8 @@ export class NodeGroup {
 	}
 
 	static matches(query: string, node: Node): boolean {
+		// a new, still-empty group matches nothing
+		if (query.trim() === "") return false;
 		// queries tags if query begins with "tag:" or "tag:#"
 		if (query.match(/^tag:#?/)) {
 			return node.tags.includes(query.replace(/^tag:#?/, "")) 

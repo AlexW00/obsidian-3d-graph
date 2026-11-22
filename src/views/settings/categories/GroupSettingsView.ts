@@ -12,18 +12,21 @@ const GroupSettingsView = (
 	containerEl: HTMLElement,
 	theme: ObsidianTheme
 ) => {
-	NodeGroups(groupSettings, containerEl);
-	AddNodeGroupButton(groupSettings, containerEl, theme);
+	const groupsEl = containerEl.createDiv();
+	const render = () => {
+		groupsEl.empty();
+		NodeGroups(groupSettings, groupsEl);
+		AddNodeGroupButton(groupSettings, groupsEl, theme, render);
+	};
+	render();
 
-	groupSettings.onChange((change: StateChange) => {
+	return groupSettings.onChange((change: StateChange) => {
+		const path = change.currentPath ?? "";
 		if (
-			(change.currentPath === "groups" && change.type === "add") ||
-			change.type === "delete"
-		) {
-			containerEl.empty();
-			NodeGroups(groupSettings, containerEl);
-			AddNodeGroupButton(groupSettings, containerEl, theme);
-		}
+			path.startsWith("groups") &&
+			(change.type === "add" || change.type === "delete")
+		)
+			render();
 	});
 };
 
@@ -49,7 +52,8 @@ const NodeGroups = (
 const AddNodeGroupButton = (
 	groupSettings: State<GroupSettings>,
 	containerEl: HTMLElement,
-	theme: ObsidianTheme
+	theme: ObsidianTheme,
+	rerender: () => void
 ) => {
 	containerEl.querySelector(".graph-color-button-container")?.remove();
 
@@ -60,9 +64,10 @@ const AddNodeGroupButton = (
 		.setClass("mod-cta")
 		.setButtonText("Add Group")
 		.onClick(() => {
-			groupSettings.value.groups.push(new NodeGroup("", theme.textMuted));
-			containerEl.empty();
-			GroupSettingsView(groupSettings, containerEl, theme);
+			groupSettings.value.groups.push(
+				new NodeGroup("", ObsidianTheme.toHex(theme.textAccent))
+			);
+			rerender();
 		});
 };
 const GroupSettingItem = (

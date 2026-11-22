@@ -1,36 +1,28 @@
 export class DisplaySettings {
-	nodeSize = 4;
-	linkThickness = 5;
-	particleSize = 6;
-	particleCount = 4;
+	nodeSize = 3;
+	linkThickness = 2;
+	particleSize = 2;
+	// particles flowing along the hovered links
+	particleCount = 2;
+	showLabels = true;
+	showArrows = false;
+	// like the 2D graph: labels fade out as you zoom away; higher = visible from further
+	textFade = 0;
 
-	constructor(
-		nodeSize?: number,
-		linkThickness?: number,
-		particleSize?: number,
-		particleCount?: number
-	) {
-		this.nodeSize = nodeSize ?? this.nodeSize;
-		this.linkThickness = linkThickness ?? this.linkThickness;
-		this.particleSize = particleSize ?? this.particleSize;
-		this.particleCount = particleCount ?? this.particleCount;
+	constructor(init?: Partial<DisplaySettings>) {
+		Object.entries(init ?? {}).forEach(([key, value]) => {
+			if (value !== undefined && key in this)
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				(this as any)[key] = value;
+		});
 	}
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	public static fromStore(store: any) {
-		return new DisplaySettings(
-			store?.nodeSize,
-			store?.linkThickness,
-			store?.particleSize,
-			store?.particleCount
-		);
+		return new DisplaySettings(store ?? {});
 	}
 
 	public toObject() {
-		return {
-			nodeSize: this.nodeSize,
-			linkThickness: this.linkThickness,
-			particleSize: this.particleSize,
-			particleCount: this.particleCount,
-		};
+		return { ...this };
 	}
 }

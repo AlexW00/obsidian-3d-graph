@@ -1,16 +1,23 @@
 import Link from "./Link";
-import { TFile, getAllTags } from "obsidian";
+import { App, TFile, getAllTags } from "obsidian";
+
+// note: a markdown file; attachment: any other file;
+// tag: a #tag shown as its own node; unresolved: a link to a note that doesn't exist
+export type NodeKind = "note" | "attachment" | "tag" | "unresolved";
 
 export default class Node {
 	public readonly id: string;
 	public readonly name: string;
 	public readonly path: string;
+	public readonly kind: NodeKind;
 	public readonly isAttachment: boolean;
 	public readonly val: number; // = weight, currently = 1 because scaling doesn't work well
 
 	public readonly neighbors: Node[];
 	public readonly links: Link[];
 	public readonly tags: string[];
+	// file creation time, used by the timelapse animation (0 for tags etc.)
+	public ctime = 0;
 
 	constructor(
 		name: string,
@@ -19,40 +26,47 @@ export default class Node {
 		val = 10,
 		neighbors: Node[] = [],
 		links: Link[] = [],
-		tags: string[] = []
+		tags: string[] = [],
+		kind?: NodeKind
 	) {
 		this.id = path;
 		this.name = name;
 		this.path = path;
-		this.isAttachment = isAttachment;
+		this.kind = kind ?? (isAttachment ? "attachment" : "note");
+		this.isAttachment = this.kind === "attachment";
 		this.val = val;
 		this.neighbors = neighbors;
 		this.links = links;
 		this.tags = tags;
 	}
 
+	// Tag and unresolved-link nodes use ids that can't collide with file paths
+	static tagId = (tag: string) => `#${tag}`;
+	static unresolvedId = (linktext: string) => `unresolved:${linktext}`;
+
 	// Creates an array of nodes from an array of files (from the Obsidian API)
-	static createFromFiles(files: TFile[]): [Node[], Map<string, number>] {
+	static createFromFiles(
+		app: App,
+		files: TFile[]
+	): [Node[], Map<string, number>] {
 		const nodeMap = new Map<string, number>();
-		return [
-			files
-				.map((file, index) => {
-					const node = new Node(file.name, file.path, file.extension == "md" ? false : true);
-					const cache = app.metadataCache.getFileCache(file),
-						tags = cache ? getAllTags(cache) : null;
-					if (tags != null) {
-						// stores tags without leading octothorpe `#` as ["tag1", "tag2", ...]
-						tags.forEach((tag) => node.tags.push(tag.substring(1)));
-					}
-					if (!nodeMap.has(node.id)) {
-						nodeMap.set(node.id, index);
-						return node;
-					}
-					return null;
-				})
-				.filter((node) => node !== null) as Node[],
-			nodeMap,
-		];
+		const nodes: Node[] = [];
+		files.forEach((file) => {
+			if (nodeMap.has(file.path)) return;
+			const node = new Node(file.name, file.path, file.extension !== "md");
+			node.ctime = file.stat?.ctime ?? 0;
+			const cache = app.metadataCache.getFileCache(file),
+				tags = cache ? getAllTags(cache) : null;
+			if (tags != null) {
+				// stores tags without leading octothorpe `#` as ["tag1", "tag2", ...]
+				new Set(tags.map((tag) => tag.substring(1))).forEach((tag) =>
+					node.tags.push(tag)
+				);
+			}
+			nodeMap.set(node.id, nodes.length);
+			nodes.push(node);
+		});
+		return [nodes, nodeMap];
 	}
 
 	// Links together two nodes as neighbors (node -> neighbor)
