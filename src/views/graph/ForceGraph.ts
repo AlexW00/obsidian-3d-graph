@@ -12,6 +12,7 @@ import EventBus from "../../util/EventBus";
 import ObsidianTheme from "../../util/ObsidianTheme";
 import { compileQuery, isEmptyQuery, Matcher, unsupportedSyntax } from "../../graph/Search";
 import { clusterColor, clusterInto } from "../../graph/Clusters";
+import { brokenLinkKey } from "../../settings/categories/FilterSettings";
 
 // a cluster needs at least this many notes to get a color
 const MIN_CLUSTER_SIZE = 2;
@@ -286,8 +287,10 @@ export class ForceGraph {
 		const edges = new Map<string, { other: string; outgoing: boolean }[]>();
 		const addEdge = (from: string, other: string, outgoing: boolean) =>
 			pushTo(edges, from, { other, outgoing });
+		const { hidden, broken } = this.removed();
 		graph.links.forEach((link) => {
 			const [s, t] = [endpointId(link.source), endpointId(link.target)];
+			if (broken.has(brokenLinkKey(s, t))) return;
 			addEdge(s, t, true);
 			addEdge(t, s, false);
 			// a link both ways counts as outgoing and incoming for both notes
@@ -307,7 +310,8 @@ export class ForceGraph {
 				if (outgoing ? !local.outgoingLinks : !local.incomingLinks) return;
 				const node = nodeById.get(other);
 				// don't walk through tags or missing notes that are filtered out
-				if (!node || level.has(other) || !this.kindShown(node)) return;
+				if (!node || level.has(other) || !this.kindShown(node) || hidden.has(other))
+					return;
 				level.set(other, depth + 1);
 				queue.push(other);
 			});
@@ -327,6 +331,25 @@ export class ForceGraph {
 			new Map(nodes.map((n, i) => [n.id, i] as [string, number])),
 			new Map()
 		);
+	}
+
+	// Nodes hidden and links broken by the user, in the 3D graph only
+	private removed() {
+		const f = this.settings.filters;
+		return { hidden: new Set(f.hiddenNodes), broken: new Set(f.brokenLinks) };
+	}
+
+	// Hides a node from the 3D graph (it stays in the vault)
+	public hideNode(node: Node) {
+		const hidden = this.settings.filters.hiddenNodes;
+		if (!hidden.includes(node.id)) hidden.push(node.id);
+	}
+
+	// Removes a link from the 3D graph (the note is not changed)
+	public breakLink(link: Link) {
+		const key = brokenLinkKey(endpointId(link.source), endpointId(link.target));
+		const broken = this.settings.filters.brokenLinks;
+		if (!broken.includes(key)) broken.push(key);
 	}
 
 	// The search as a matcher, or null to show everything. A query using
@@ -355,9 +378,11 @@ export class ForceGraph {
 		const search = this.compileSearch(f.search);
 		const root = this.isLocalGraph ? this.plugin.openFileState.value : undefined;
 
+		const { hidden, broken } = this.removed();
 		const shown = new Set<string>();
 		this.fullGraph.nodes.forEach((node) => {
 			if (node.kind !== "note" && node.kind !== "attachment") return;
+			if (hidden.has(node.id) && node.id !== root) return;
 			if (!this.kindShown(node)) return;
 			if (node.id === root || !search || search(node)) shown.add(node.id);
 		});
@@ -366,14 +391,20 @@ export class ForceGraph {
 			if (node.kind === "note" || node.kind === "attachment") return;
 			if (
 				this.kindShown(node) &&
-				node.neighbors.some((n) => inGraph.has(n.id) && shown.has(n.id))
+				!hidden.has(node.id) &&
+				node.neighbors.some(
+					(n) =>
+						inGraph.has(n.id) &&
+						shown.has(n.id) &&
+						!broken.has(brokenLinkKey(n.id, node.id))
+				)
 			)
 				shown.add(node.id);
 		});
 
 		const links = this.fullGraph.links.filter((link) => {
 			const [s, t] = [endpointId(link.source), endpointId(link.target)];
-			return shown.has(s) && shown.has(t);
+			return shown.has(s) && shown.has(t) && !broken.has(brokenLinkKey(s, t));
 		});
 		this.visibleDegree.clear();
 		links.forEach((link) => {
@@ -766,6 +797,15 @@ export class ForceGraph {
 
 	private onSettingsStateChanged = (data: StateChange) => {
 		const path = data.currentPath ?? "";
+		if (path.startsWith("filters.hiddenNodes") || path.startsWith("filters.brokenLinks")) {
+			// hiding or breaking something: update in place, keep the camera
+			window.clearTimeout(this.filterTimer);
+			this.filterTimer = window.setTimeout(() => {
+				const data = this.isLocalGraph ? this.getGraphData() : this.filterGraph();
+				this.setGraphData(data, false);
+			}, 50);
+			return;
+		}
 		if (path.startsWith("filters") || path.startsWith("local")) {
 			// typing in the search box fires on every keystroke
 			window.clearTimeout(this.filterTimer);

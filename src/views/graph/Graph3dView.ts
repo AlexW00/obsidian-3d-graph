@@ -1,5 +1,6 @@
 import { ItemView, Menu, TFile, WorkspaceLeaf } from "obsidian";
 import Node from "../../graph/Node";
+import Link from "../../graph/Link";
 import { ForceGraph } from "./ForceGraph";
 import { GraphSettingsView } from "../settings/GraphSettingsView";
 import Graph3dPlugin from "src/main";
@@ -116,11 +117,28 @@ export class Graph3dView extends ItemView {
 				leaf.openFile(file);
 			})
 			.onNodeRightClick((node: Node, event: MouseEvent) => {
-				// the file's context menu, like the 2D graph
-				const file = this.fileFor(node);
-				if (!file) return;
 				const menu = new Menu();
-				this.app.workspace.trigger("file-menu", menu, file, "graph-context-menu", this.leaf);
+				menu.addItem((item) =>
+					item
+						.setTitle("Hide in 3D graph")
+						.setIcon("eye-off")
+						.onClick(() => this.forceGraph.hideNode(node))
+				);
+				const file = this.fileFor(node);
+				if (file) {
+					menu.addSeparator();
+					this.app.workspace.trigger("file-menu", menu, file, "graph-context-menu", this.leaf);
+				}
+				menu.showAtMouseEvent(event);
+			})
+			.onLinkRightClick((link: Link, event: MouseEvent) => {
+				const menu = new Menu();
+				menu.addItem((item) =>
+					item
+						.setTitle("Break link in 3D graph")
+						.setIcon("unlink")
+						.onClick(() => this.forceGraph.breakLink(link))
+				);
 				menu.showAtMouseEvent(event);
 			});
 	}

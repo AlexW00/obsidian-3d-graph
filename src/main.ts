@@ -6,6 +6,7 @@ import Graph from "./graph/Graph";
 import ObsidianTheme from "./util/ObsidianTheme";
 import EventBus from "./util/EventBus";
 import { CoreGraphOptions, readCoreGraphOptions } from "./util/CoreGraphOptions";
+import { brokenLinkKey } from "./settings/categories/FilterSettings";
 
 export default class Graph3dPlugin extends Plugin {
 	// filters, groups and forces of Obsidian's 2D graph, kept in sync
@@ -126,7 +127,10 @@ export default class Graph3dPlugin extends Plugin {
 			this.app.metadataCache.on("resolved", this.onGraphCacheReady)
 		);
 		this.registerEvent(
-			this.app.vault.on("rename", this.requestRebuild)
+			this.app.vault.on("rename", (file, oldPath) => {
+				this.renameHidden(oldPath, file.path);
+				this.requestRebuild();
+			})
 		);
 		this.registerEvent(this.app.vault.on("delete", this.requestRebuild));
 
@@ -172,6 +176,22 @@ export default class Graph3dPlugin extends Plugin {
 		this.globalGraphSignature = signature;
 		this.globalGraph = graph;
 		return true;
+	}
+
+	// keeps hidden nodes and broken links attached to a renamed file
+	private renameHidden(oldPath: string, newPath: string) {
+		const filters = this.settingsState.value.filters;
+		const i = filters.hiddenNodes.indexOf(oldPath);
+		if (i !== -1) filters.hiddenNodes.splice(i, 1, newPath);
+		filters.brokenLinks.forEach((key, j) => {
+			const ends = key.split("|");
+			if (!ends.includes(oldPath)) return;
+			filters.brokenLinks.splice(
+				j,
+				1,
+				brokenLinkKey(...(ends.map((e) => (e === oldPath ? newPath : e)) as [string, string]))
+			);
+		});
 	}
 
 	private refreshCoreGraphOptions = async () => {
