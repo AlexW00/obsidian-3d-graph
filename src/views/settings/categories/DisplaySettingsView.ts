@@ -10,6 +10,7 @@ type NumberKey =
 	| "motesPerLink"
 	| "particleSpeed"
 	| "particleArc"
+	| "particleSolidity"
 	| "textFade";
 
 const DisplaySettingsView = (
@@ -51,6 +52,7 @@ const DisplaySettingsView = (
 	slider("Particle size", "particleSize", 0.5, 8, 0.5);
 	slider("Particle speed", "particleSpeed", 1, 10, 0.5);
 	slider("Particle spread", "particleArc", 0, 1, 0.05);
+	slider("Particle solidity", "particleSolidity", 0, 1, 0.05);
 
 	if (onAnimate) {
 		const buttonContainer = containerEl.createDiv({ cls: "graph-control-animate" });

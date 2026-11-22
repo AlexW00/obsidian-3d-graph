@@ -21,6 +21,7 @@ export interface MoteStyle {
 	size: number; // world units
 	speed: number; // fraction of the link per second
 	spread: number; // max bow, as a fraction of the link length
+	solidity: number; // 0 = soft glow, 1 = solid dot
 	additive: boolean; // glow on dark backgrounds; normal blending on light
 }
 
@@ -59,17 +60,21 @@ void main() {
 }`;
 
 const FRAGMENT = `
+uniform float uSolid;
 varying float vAlpha;
 varying vec3 vColor;
 void main() {
 	float d = length(gl_PointCoord - vec2(0.5));
 	if (d > 0.5) discard;
-	// bright core inside a soft glow
+	// soft: a bright core inside a glow, the core a little whiter, like a
+	// point of light
 	float glow = pow(1.0 - d * 2.0, 2.0) * 0.55;
 	float core = smoothstep(0.16, 0.0, d);
-	// the core runs a little whiter, like a point of light
-	vec3 color = mix(vColor, vec3(1.0), core * 0.35);
-	gl_FragColor = vec4(color, vAlpha * min(1.0, glow + core));
+	float soft = min(1.0, glow + core);
+	// solid: an opaque dot with a crisp edge, about the glow's visible size
+	float solid = 1.0 - smoothstep(0.24, 0.3, d);
+	vec3 color = mix(vColor, vec3(1.0), core * 0.35 * (1.0 - uSolid));
+	gl_FragColor = vec4(color, vAlpha * mix(soft, solid, uSolid));
 }`;
 
 interface Mote {
@@ -170,7 +175,7 @@ export class MoteField {
 		geometry.setAttribute("aAlpha", attr(1));
 		geometry.setAttribute("aSize", attr(1));
 		this.material = new THREE.ShaderMaterial({
-			uniforms: { uScale: { value: 400 } },
+			uniforms: { uScale: { value: 400 }, uSolid: { value: style.solidity } },
 			vertexShader: VERTEX,
 			fragmentShader: FRAGMENT,
 			transparent: true,
@@ -200,6 +205,7 @@ export class MoteField {
 		if (!this.geometry || !this.material) return;
 		this.time += dt;
 		this.material.uniforms.uScale.value = viewportHeight / 2;
+		this.material.uniforms.uSolid.value = style.solidity;
 		this.material.blending = style.additive ? THREE.AdditiveBlending : THREE.NormalBlending;
 
 		const pos = this.geometry.attributes.position.array as Float32Array;
@@ -268,7 +274,8 @@ export class MoteField {
 			col[o + 2] = f.from.b + (f.to.b - f.from.b) * t;
 
 			// fade in at the source, out at the target, with a gentle twinkle
-			const twinkle = 0.75 + 0.25 * Math.sin(this.time * 3 + m.twinkle);
+			// solid dots hold steady; soft motes twinkle
+			const twinkle = 1 - 0.25 * (1 - style.solidity) * (1 - Math.sin(this.time * 3 + m.twinkle));
 			alpha[i] = Math.sin(Math.PI * t) * twinkle * f.bright;
 			size[i] = style.size * m.size;
 		});

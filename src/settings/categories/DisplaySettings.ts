@@ -13,6 +13,8 @@ export class DisplaySettings {
 	// how far motes' arcs spread around the link (0 = all on the line)
 	particleArc = 0.35;
 	particleSpeed = 4;
+	// 0 = soft glowing motes of light, 1 = solid dots in the notes' colors
+	particleSolidity = 0;
 	showArrows = false;
 	// like the 2D graph: labels fade out as you zoom away; higher = visible from further
 	textFade = 0;
