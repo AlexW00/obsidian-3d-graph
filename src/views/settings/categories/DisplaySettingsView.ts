@@ -7,7 +7,8 @@ type NumberKey =
 	| "nodeSize"
 	| "linkThickness"
 	| "particleSize"
-	| "particleCount";
+	| "particleCount"
+	| "textFade";
 
 const DisplaySettingsView = (
 	displaySettings: State<DisplaySettings>,
@@ -15,7 +16,7 @@ const DisplaySettingsView = (
 	onAnimate?: () => void
 ) => {
 	const display = displaySettings.value;
-	const toggle = (name: string, key: "showArrows") =>
+	const toggle = (name: string, key: "showLabels" | "showArrows") =>
 		new Setting(containerEl).setName(name).addToggle((t) =>
 			t.setValue(display[key]).onChange((value) => {
 				displaySettings.value[key] = value;
@@ -31,6 +32,8 @@ const DisplaySettingsView = (
 		);
 
 	toggle("Arrows", "showArrows");
+	toggle("Labels", "showLabels");
+	slider("Text fade threshold", "textFade", -3, 3, 0.1);
 	slider("Node size", "nodeSize", 1, 20, 1);
 	slider("Link thickness", "linkThickness", 1, 10, 0.5);
 	slider("Particle count", "particleCount", 0, 10, 1);

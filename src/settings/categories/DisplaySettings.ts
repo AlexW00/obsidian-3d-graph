@@ -4,7 +4,10 @@ export class DisplaySettings {
 	particleSize = 2;
 	// particles flowing along the hovered links
 	particleCount = 2;
+	showLabels = true;
 	showArrows = false;
+	// like the 2D graph: labels fade out as you zoom away; higher = visible from further
+	textFade = 0;
 
 	constructor(init?: Partial<DisplaySettings>) {
 		Object.entries(init ?? {}).forEach(([key, value]) => {

@@ -1,5 +1,6 @@
 import ForceGraph3D, { ForceGraph3DInstance } from "3d-force-graph";
 import { Notice } from "obsidian";
+import * as THREE from "three";
 import { forceX, forceY, forceZ } from "d3-force-3d";
 import Node from "../../graph/Node";
 import Link from "../../graph/Link";
@@ -26,6 +27,12 @@ const WARMUP_TICKS = 120;
 const endpointId = (end: string | Node): string =>
 	typeof end === "string" ? end : end.id;
 
+// label height in world units, relative to the node size setting
+const LABEL_SCALE = 1.1;
+// labels start fading at this multiple of the graph's radius (text fade = 0),
+// which is about where zoom-to-fit puts the camera
+const LABEL_FADE_RADII = 3.2;
+
 type Positioned = Node & { x?: number; y?: number; z?: number };
 
 export class ForceGraph {
@@ -50,6 +57,8 @@ export class ForceGraph {
 	private colorGroups: { matches: Matcher; color: string }[] = [];
 	private warnedQuery: string | null = null;
 
+	private readonly labels = new Map<string, THREE.Sprite>();
+	private readonly labelFade = new Map<string, number>();
 	private hasFramedGraph = false;
 	private filterTimer = 0;
 	private animationTimer = 0;
@@ -85,12 +94,14 @@ export class ForceGraph {
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const controls = this.instance.controls() as any;
+		controls?.addEventListener?.("change", this.updateLabelFade);
 
 		this.unsubscribers.push(() => {
 			EventBus.off("graph-changed", this.onVaultGraphChanged);
 			EventBus.off("theme-changed", this.onThemeChanged);
 			EventBus.off("core-graph-options-changed", this.onCoreOptionsChanged);
 			this.rootHtmlElement.removeEventListener("mousemove", trackMouse);
+			controls?.removeEventListener?.("change", this.updateLabelFade);
 			window.clearTimeout(this.filterTimer);
 			window.clearTimeout(this.animationTimer);
 		});
@@ -137,6 +148,7 @@ export class ForceGraph {
 			// settle most of the layout before the first frame, then frame it
 			.warmupTicks(WARMUP_TICKS)
 			.cooldownTime(2500)
+			.onEngineTick(this.updateLabelFade)
 			.onEngineStop(this.frameGraph)
 			.graphData(this.getGraphData());
 	}
@@ -180,6 +192,7 @@ export class ForceGraph {
 
 	// Zoom to fit the whole graph once its layout settles
 	private frameGraph = () => {
+		this.updateLabelFade();
 		if (this.hasFramedGraph) return;
 		this.hasFramedGraph = true;
 		this.instance.zoomToFit(500, 40);
@@ -394,6 +407,7 @@ export class ForceGraph {
 		if (reframe) this.hasFramedGraph = false;
 		this.instance.graphData(graph);
 		this.applyForces();
+		this.rebuildLabels();
 	}
 
 	// the vault changed: rebuild, but keep the camera where it is
@@ -461,7 +475,10 @@ export class ForceGraph {
 			});
 			if (count < files.length)
 				this.animationTimer = window.setTimeout(step, 60);
-			else this.instance.warmupTicks(WARMUP_TICKS);
+			else {
+				this.instance.warmupTicks(WARMUP_TICKS);
+				this.rebuildLabels();
+			}
 		};
 		step();
 	}
@@ -486,6 +503,9 @@ export class ForceGraph {
 
 		if (path === "display.nodeSize") {
 			this.instance.nodeRelSize(data.newValue);
+			this.rebuildLabels();
+		} else if (path === "display.showLabels" || path === "display.textFade") {
+			this.rebuildLabels();
 		} else if (path === "display.particleSize") {
 			this.instance.linkDirectionalParticleWidth(data.newValue);
 		}
@@ -494,6 +514,7 @@ export class ForceGraph {
 	};
 
 	private onThemeChanged = () => {
+		this.rebuildLabels();
 		this.updateHighlight();
 	};
 
@@ -528,7 +549,12 @@ export class ForceGraph {
 			.nodeResolution(20)
 			.nodeOpacity(1)
 			.nodeColor(this.getNodeColor)
-			.nodeLabel((node: Node) => this.tooltipFor(node))
+			.nodeLabel((node: Node) =>
+				// hover tooltip only when the always-on labels are turned off
+				this.display.showLabels ? "" : this.tooltipFor(node)
+			)
+			.nodeThreeObject(this.createLabel)
+			.nodeThreeObjectExtend(true)
 			.onNodeHover(this.onNodeHover);
 	};
 
@@ -568,6 +594,120 @@ export class ForceGraph {
 		return color;
 	}
 
+	// A text sprite under each node, drawn with the theme's font and colors
+	private createLabel = (node: Node): THREE.Object3D => {
+		const group = new THREE.Group();
+		// with labels off, only the hovered neighborhood gets labels
+		if (!this.display.showLabels && !this.highlightedNodes.has(node.id)) return group;
+
+		const theme = this.theme;
+		const text = displayName(node);
+		const fontPx = 64;
+		const font = `500 ${fontPx}px ${theme.fontInterface}`;
+		const pad = 12;
+
+		const canvas = document.createElement("canvas");
+		const ctx = canvas.getContext("2d");
+		if (!ctx) return group;
+		ctx.font = font;
+		canvas.width = Math.ceil(ctx.measureText(text).width) + pad * 2;
+		canvas.height = fontPx + pad * 2;
+
+		ctx.font = font;
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.lineJoin = "round";
+		// halo in the background color keeps labels legible over links
+		ctx.lineWidth = 10;
+		ctx.strokeStyle = theme.backgroundPrimary;
+		ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+		ctx.fillStyle = theme.textNormal;
+		ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+		const texture = new THREE.CanvasTexture(canvas);
+		texture.minFilter = THREE.LinearFilter;
+		texture.generateMipmaps = false;
+		const material = new THREE.SpriteMaterial({
+			map: texture,
+			transparent: true,
+			depthWrite: false,
+		});
+		const sprite = new THREE.Sprite(material);
+
+		const height = this.display.nodeSize * LABEL_SCALE + 2;
+		sprite.scale.set((height * canvas.width) / canvas.height, height, 1);
+		sprite.position.set(0, -(this.nodeRadius(node) + height * 0.75), 0);
+		sprite.renderOrder = 10;
+
+		group.add(sprite);
+		this.labels.set(node.id, sprite);
+		this.applyLabelHighlight(node.id, sprite);
+		return group;
+	};
+
+	private rebuildLabels() {
+		this.labels.clear();
+		// a new accessor makes three-forcegraph purge and rebuild node objects
+		this.instance.nodeThreeObject((node: Node) => this.createLabel(node));
+	}
+
+	// Labels fade with camera distance, like the 2D graph's text fade threshold
+	private updateLabelFade = () => {
+		if (this.labels.size === 0) return;
+		const camera = this.instance.camera().position;
+		const nodes = (this.graph.nodes as Positioned[]).filter(
+			(n) => n.x !== undefined
+		);
+		if (nodes.length === 0) return;
+
+		// graph radius around its centroid
+		const c = { x: 0, y: 0, z: 0 };
+		nodes.forEach((n) => {
+			c.x += n.x ?? 0;
+			c.y += n.y ?? 0;
+			c.z += n.z ?? 0;
+		});
+		[c.x, c.y, c.z] = [c.x / nodes.length, c.y / nodes.length, c.z / nodes.length];
+		const radius = Math.max(
+			...nodes.map((n) =>
+				Math.hypot((n.x ?? 0) - c.x, (n.y ?? 0) - c.y, (n.z ?? 0) - c.z)
+			)
+		);
+		const base =
+			Math.max(150, radius * LABEL_FADE_RADII) * Math.pow(2, this.display.textFade);
+		const byId = new Map(nodes.map((n) => [n.id, n] as [string, Positioned]));
+
+		this.labels.forEach((sprite, id) => {
+			const n = byId.get(id);
+			if (!n) return;
+			// bigger (better-connected) nodes keep their labels from further away
+			const scale = Math.min(
+				2,
+				Math.max(0.6, this.nodeRadius(n) / (this.display.nodeSize * 1.6))
+			);
+			const start = base * scale;
+			const range = start * 0.35;
+			const d = Math.hypot(
+				camera.x - (n.x ?? 0),
+				camera.y - (n.y ?? 0),
+				camera.z - (n.z ?? 0)
+			);
+			this.labelFade.set(id, Math.min(1, Math.max(0, (start + range - d) / range)));
+			this.applyLabelHighlight(id, sprite);
+		});
+	};
+
+	private applyLabelHighlight(nodeId: string, sprite: THREE.Sprite) {
+		const material = sprite.material as THREE.SpriteMaterial;
+		const highlighted = this.hasHighlight() && this.highlightedNodes.has(nodeId);
+		const dimmed = this.hasHighlight() && !highlighted;
+		// the hovered neighborhood stays readable at any distance
+		const fade = highlighted ? 1 : this.labelFade.get(nodeId) ?? 1;
+		material.opacity = (dimmed ? 0.12 : 1) * fade;
+		sprite.visible =
+			material.opacity > 0.01 && (this.display.showLabels || !dimmed);
+	}
+
 	private onNodeHover = (node: Node | null) => {
 		if (
 			(!node && !this.highlightedNodes.size) ||
@@ -585,7 +725,9 @@ export class ForceGraph {
 				this.highlightedNodes.add(endpointId(link.target));
 			});
 		}
+		const labelsNeedBuilding = !this.display.showLabels && this.hoveredNode !== (node ?? null);
 		this.hoveredNode = node ?? null;
+		if (labelsNeedBuilding) this.rebuildLabels();
 		this.updateHighlight();
 		this.onHover?.(this.hoveredNode, this.lastMouseEvent);
 	};
@@ -662,6 +804,7 @@ export class ForceGraph {
 	};
 
 	private updateHighlight() {
+		this.labels.forEach((sprite, id) => this.applyLabelHighlight(id, sprite));
 		// re-setting the accessors makes three-forcegraph re-evaluate them
 		this.instance
 			.nodeColor(this.instance.nodeColor())

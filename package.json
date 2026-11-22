@@ -27,6 +27,7 @@
 		"3d-force-graph": "^1.70.12",
 		"d3": "^7.6.1",
 		"d3-force-3d": "^3.0.3",
-		"observable-slim": "^0.1.6"
+		"observable-slim": "^0.1.6",
+		"three": "^0.146.0"
 	}
 }
