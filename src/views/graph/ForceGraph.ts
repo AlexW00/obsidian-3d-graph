@@ -40,6 +40,17 @@ const pushTo = <K, V>(map: Map<K, V[]>, key: K, value: V) => {
 const TAG_PAIR_LIMIT = 30;
 
 const WARMUP_TICKS = 120;
+const COOLDOWN_MS = 2500;
+
+// The load bounce, like the 2D graph: the settled layout grows out of its
+// center on a damped spring, past full size and back (seconds, fractions)
+const BOUNCE_START = 0.1; // starting size
+const BOUNCE_SECONDS = 1.5;
+const BOUNCE_DAMPING = 3; // higher settles faster
+const BOUNCE_FREQUENCY = 5.2; // radians per second
+
+// a node pinned in place by the layout (d3's fixed positions)
+type PinnedNode = { fx?: number; fy?: number; fz?: number };
 
 // D3 replaces link source/target ids with the node objects once rendered
 const endpointId = (end: string | Node): string =>
@@ -87,6 +98,14 @@ export class ForceGraph {
 	private hasFramedGraph = false;
 	private layoutSettled = false;
 	private userMovedCamera = false;
+	// spring the graph out from its center once it's first on screen
+	private pendingBounce = true;
+	private bounce: {
+		elapsed: number; // seconds of animation shown so far
+		last: number; // time of the last step
+		center: { x: number; y: number; z: number };
+		nodes: { node: Positioned & PinnedNode; x: number; y: number; z: number }[];
+	} | null = null;
 	private filterTimer = 0;
 	private animationTimer = 0;
 	private readonly unsubscribers: (() => void)[] = [];
@@ -192,7 +211,7 @@ export class ForceGraph {
 			.height(this.rootHtmlElement.offsetHeight || window.innerHeight)
 			// settle most of the layout before the first frame, then frame it
 			.warmupTicks(WARMUP_TICKS)
-			.cooldownTime(2500)
+			.cooldownTime(COOLDOWN_MS)
 			.onEngineTick(this.onEngineTick)
 			.onEngineStop(this.frameGraph)
 			.graphData(this.getGraphData());
@@ -312,6 +331,81 @@ export class ForceGraph {
 		);
 	}
 
+	// Frames the settled layout, then grows it out of its center on a damped
+	// spring, past full size and back, like the 2D graph on load. Nodes are
+	// pinned along the way, then released into the live layout. Returns
+	// false if there's no layout to bounce yet.
+	private startBounce(): boolean {
+		const nodes = (this.instance.graphData().nodes as (Positioned & PinnedNode)[]).filter(
+			(n) => n.x !== undefined
+		);
+		if (nodes.length === 0) return false;
+		this.pendingBounce = false;
+		if (nodes.length < 2) return false;
+		// the camera stays put; the graph grows to fill it
+		this.fitCamera(0);
+		const center = { x: 0, y: 0, z: 0 };
+		nodes.forEach((n) => {
+			center.x += (n.x ?? 0) / nodes.length;
+			center.y += (n.y ?? 0) / nodes.length;
+			center.z += (n.z ?? 0) / nodes.length;
+		});
+		this.bounce = {
+			elapsed: 0,
+			last: performance.now(),
+			center,
+			nodes: nodes.map((node) => ({ node, x: node.x ?? 0, y: node.y ?? 0, z: node.z ?? 0 })),
+		};
+		this.stepBounce();
+		// keep the layout engine running so the pinned positions are drawn,
+		// however slow the frames (the usual cooldown is restored after)
+		this.instance.cooldownTime(Infinity).d3ReheatSimulation();
+		return true;
+	}
+
+	// Moves the pinned nodes along the spring; ends the bounce when it's done
+	private stepBounce() {
+		const bounce = this.bounce;
+		if (!bounce) return;
+		// advance at most 1/20 s per frame, so a slow first frame (labels are
+		// built at load) doesn't skip the animation
+		const now = performance.now();
+		bounce.elapsed += Math.min(0.05, (now - bounce.last) / 1000);
+		bounce.last = now;
+		const t = bounce.elapsed;
+		if (t >= BOUNCE_SECONDS) {
+			this.endBounce();
+			return;
+		}
+		// 1 - (1 - start) e^(-dt) cos(ft), eased to exactly 1 at the end
+		const scale =
+			1 -
+			(1 - BOUNCE_START) *
+				Math.exp(-BOUNCE_DAMPING * t) *
+				Math.cos(BOUNCE_FREQUENCY * t) *
+				(1 - t / BOUNCE_SECONDS);
+		const c = bounce.center;
+		bounce.nodes.forEach(({ node, x, y, z }) => {
+			node.fx = c.x + (x - c.x) * scale;
+			node.fy = c.y + (y - c.y) * scale;
+			node.fz = c.z + (z - c.z) * scale;
+		});
+	}
+
+	// Releases the nodes at their settled positions
+	private endBounce() {
+		const bounce = this.bounce;
+		if (!bounce) return;
+		this.bounce = null;
+		this.instance.cooldownTime(COOLDOWN_MS);
+		bounce.nodes.forEach(({ node, x, y, z }) => {
+			Object.assign(node, { x, y, z, vx: 0, vy: 0, vz: 0 });
+			delete node.fx;
+			delete node.fy;
+			delete node.fz;
+		});
+	}
+
 	private get shouldFollowLayout() {
 		return !this.hasFramedGraph && !this.userMovedCamera && this.hasSize;
 	}
@@ -319,13 +413,17 @@ export class ForceGraph {
 	// While a new layout settles, keep it all in view
 	private onEngineTick = () => {
 		this.updateLabelFade();
-		if (this.shouldFollowLayout) this.fitCamera(0);
+		if (this.pendingBounce && this.hasSize && this.startBounce()) return;
+		// while bouncing the camera holds still and the graph grows into it
+		if (this.bounce) this.stepBounce();
+		else if (this.shouldFollowLayout) this.fitCamera(0);
 	};
 
 	// The layout stopped: one last, smooth fit. A view hidden while loading
 	// (e.g. a background tab at startup) is framed when it is first shown.
 	private frameGraph = () => {
 		this.updateLabelFade();
+		this.endBounce();
 		this.layoutSettled = true;
 		if (!this.shouldFollowLayout) return;
 		this.hasFramedGraph = true;
@@ -337,6 +435,8 @@ export class ForceGraph {
 	private onContainerResized = () => {
 		if (!this.hasSize) return;
 		this.updateDimensions();
+		// first shown now (hidden while loading): bounce in, like on load
+		if (this.pendingBounce && this.startBounce()) return;
 		if (!this.shouldFollowLayout) return;
 		this.fitCamera(0);
 		if (this.layoutSettled) this.hasFramedGraph = true;
@@ -817,6 +917,7 @@ export class ForceGraph {
 	// that were already on screen so the layout doesn't jump
 	private setGraphData(graph: Graph, reframe: boolean) {
 		window.clearTimeout(this.animationTimer);
+		this.endBounce();
 		const previous = new Map<string, Record<string, number>>();
 		this.instance.graphData().nodes.forEach((n: Record<string, unknown>) => {
 			previous.set(n.id as string, n as Record<string, number>);
@@ -849,6 +950,8 @@ export class ForceGraph {
 
 	// the local graph's file changed: new graph, reframe
 	private onOpenFileChanged = () => {
+		// a new local graph bounces in, like a fresh load
+		this.pendingBounce = true;
 		this.setGraphData(this.getGraphData(), true);
 	};
 
@@ -867,6 +970,8 @@ export class ForceGraph {
 	// 2D graph's "Animate" button
 	public animate() {
 		window.clearTimeout(this.animationTimer);
+		this.pendingBounce = false;
+		this.endBounce();
 		const full = this.graph;
 		const files = full.nodes
 			.filter((n) => n.kind === "note" || n.kind === "attachment")
