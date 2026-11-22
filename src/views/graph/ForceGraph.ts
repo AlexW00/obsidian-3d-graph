@@ -23,6 +23,8 @@ const pushTo = <K, V>(map: Map<K, V[]>, key: K, value: V) => {
 
 const WARMUP_TICKS = 120;
 
+type Coords = { x: number; y: number; z: number };
+
 // D3 replaces link source/target ids with the node objects once rendered
 const endpointId = (end: string | Node): string =>
 	typeof end === "string" ? end : end.id;
@@ -751,11 +753,14 @@ export class ForceGraph {
 			)
 			.linkResolution(8)
 			.linkOpacity(1)
-			.linkDirectionalArrowLength(() =>
-				this.showArrows ? 2 + this.display.linkThickness : 0
-			)
+			.linkDirectionalArrowLength(this.arrowLength)
 			.linkDirectionalArrowRelPos(1)
 			.linkDirectionalArrowColor(this.getArrowColor)
+			// three-forcegraph draws one arrow per link, toward its target; a
+			// mutual link gets a second arrowhead pointing back at its source
+			.linkThreeObjectExtend(true)
+			.linkThreeObject(this.createReverseArrow)
+			.linkPositionUpdate(this.updateReverseArrow)
 			// particles flow along the hovered links
 			.linkDirectionalParticles((link: Link) =>
 				this.isHighlightedLink(link) ? this.display.particleCount : 0
@@ -786,6 +791,54 @@ export class ForceGraph {
 		);
 	};
 
+	private arrowLength = () => (this.showArrows ? 2 + this.display.linkThickness : 0);
+
+	// the same cone three-forcegraph uses for its arrows: base at the origin,
+	// pointing along +z
+	private createReverseArrow = (link: Link): THREE.Object3D => {
+		const length = this.arrowLength();
+		// three-forcegraph treats a falsy object as "no custom object"
+		if (!link.mutual || !length) return null as unknown as THREE.Object3D;
+		const geometry = new THREE.ConeGeometry(length * 0.25, length, 8);
+		geometry.translate(0, length / 2, 0);
+		geometry.rotateX(Math.PI / 2);
+		const material = new THREE.MeshLambertMaterial({
+			color: new THREE.Color(this.getArrowColor(link)),
+			transparent: true,
+		});
+		return new THREE.Mesh(geometry, material);
+	};
+
+	// place the reverse arrowhead against the source node, mirroring where
+	// three-forcegraph places the forward one against the target
+	private updateReverseArrow = (
+		arrow: THREE.Object3D | undefined,
+		{ start, end }: { start: Coords; end: Coords },
+		link: Link
+	): boolean => {
+		if (!arrow || !link.mutual || typeof link.source !== "object") return false;
+		const length = this.arrowLength();
+		const source = link.source as Node;
+		// three-forcegraph offsets its arrows by sqrt(val) * nodeRelSize
+		const sourceR = Math.sqrt(Math.max(0, this.nodeVal(source))) * this.display.nodeSize;
+		const dx = start.x - end.x;
+		const dy = (start.y || 0) - (end.y || 0);
+		const dz = (start.z || 0) - (end.z || 0);
+		const lineLen = Math.hypot(dx, dy, dz);
+		if (!lineLen) return false;
+		// the point `d` along the line from the target toward the source
+		const along = (d: number): [number, number, number] => [
+			end.x + (dx * d) / lineLen,
+			(end.y || 0) + (dy * d) / lineLen,
+			(end.z || 0) + (dz * d) / lineLen,
+		];
+		arrow.position.set(...along(lineLen - sourceR - length));
+		const head = new THREE.Vector3(...along(lineLen - sourceR));
+		arrow.parent?.localToWorld(head); // lookAt takes world coordinates
+		arrow.lookAt(head);
+		return false; // let three-forcegraph update the line itself
+	};
+
 	private onLinkHover = (link: Link | null) => {
 		if (this.hoveredNode) return; // nodes take precedence
 		this.clearHighlights();
@@ -806,7 +859,10 @@ export class ForceGraph {
 	private updateHighlight() {
 		this.labels.forEach((sprite, id) => this.applyLabelHighlight(id, sprite));
 		// re-setting the accessors makes three-forcegraph re-evaluate them
+		// (re-setting linkThreeObject rebuilds the reverse arrows, so they pick
+		// up the new color and size)
 		this.instance
+			.linkThreeObject(this.instance.linkThreeObject())
 			.nodeColor(this.instance.nodeColor())
 			.linkColor(this.instance.linkColor())
 			.linkWidth(this.instance.linkWidth())
