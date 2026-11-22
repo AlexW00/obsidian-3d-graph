@@ -2,9 +2,23 @@ import Node from "../../graph/Node";
 
 export class GroupSettings {
 	groups: NodeGroup[] = [];
+	// color nodes by detected cluster (communities of closely linked notes)
+	colorByCluster = true;
+	// how many color groups to split the graph into
+	clusterCount = 4;
+	// how strongly a cluster's members are drawn together (0 = off)
+	clusterPull = 0.4;
 
-	constructor(groups?: NodeGroup[]) {
+	constructor(
+		groups?: NodeGroup[],
+		colorByCluster?: boolean,
+		clusterCount?: number,
+		clusterPull?: number
+	) {
 		this.groups = groups ?? this.groups;
+		this.colorByCluster = colorByCluster ?? this.colorByCluster;
+		this.clusterCount = clusterCount ?? this.clusterCount;
+		this.clusterPull = clusterPull ?? this.clusterPull;
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,13 +27,19 @@ export class GroupSettings {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			(store?.groups ?? []).flatMap((nodeGroup: any) => {
 				return new NodeGroup(nodeGroup.query, nodeGroup.color);
-			})
+			}),
+			store?.colorByCluster,
+			store?.clusterCount,
+			store?.clusterPull
 		);
 	}
 
 	public toObject() {
 		return {
 			groups: this.groups,
+			colorByCluster: this.colorByCluster,
+			clusterCount: this.clusterCount,
+			clusterPull: this.clusterPull,
 		};
 	}
 }

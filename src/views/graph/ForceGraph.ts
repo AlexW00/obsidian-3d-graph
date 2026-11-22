@@ -11,6 +11,18 @@ import { NodeGroup } from "../../settings/categories/GroupSettings";
 import EventBus from "../../util/EventBus";
 import ObsidianTheme from "../../util/ObsidianTheme";
 import { compileQuery, isEmptyQuery, Matcher, unsupportedSyntax } from "../../graph/Search";
+import { clusterColor, clusterInto } from "../../graph/Clusters";
+
+// a cluster needs at least this many notes to get a color
+const MIN_CLUSTER_SIZE = 2;
+const MAX_LEGEND_ITEMS = 12;
+
+interface Cluster {
+	color: string;
+	name: string;
+	noteCount: number;
+	members: Set<string>;
+}
 
 // Adapted from https://github.com/vasturiano/3d-force-graph/blob/master/example/highlight/index.html
 
@@ -20,6 +32,10 @@ const pushTo = <K, V>(map: Map<K, V[]>, key: K, value: V) => {
 	if (list) list.push(value);
 	else map.set(key, [value]);
 };
+
+// Tags on more notes than this join their notes through one shared hub
+// instead of an edge for every pair, which would grow with the square
+const TAG_PAIR_LIMIT = 30;
 
 const WARMUP_TICKS = 120;
 
@@ -55,7 +71,12 @@ export class ForceGraph {
 	private graph: Graph;
 	private readonly visibleDegree = new Map<string, number>();
 	private colorGroups: { matches: Matcher; color: string }[] = [];
+	private clusters: Cluster[] = [];
 	private warnedQuery: string | null = null;
+	private clusterCache: { key: string; community: Map<string, number> } | null = null;
+	private readonly clusterColorOf = new Map<string, string>();
+	private readonly clusterIndexOf = new Map<string, number>();
+	private legendEl: HTMLElement | undefined;
 
 	private readonly labels = new Map<string, THREE.Sprite>();
 	private readonly labelFade = new Map<string, number>();
@@ -74,7 +95,10 @@ export class ForceGraph {
 		this.plugin = plugin;
 
 		this.createGraph();
+		// after the graph: the renderer clears its container when it starts
+		this.legendEl = this.rootHtmlElement.createDiv({ cls: "graph-3d-cluster-legend" });
 		this.initListeners();
+		this.renderLegend();
 	}
 
 	private initListeners() {
@@ -111,6 +135,7 @@ export class ForceGraph {
 	public destroy() {
 		this.unsubscribers.forEach((unsubscribe) => unsubscribe());
 		this.unsubscribers.length = 0;
+		this.legendEl?.remove();
 		this.instance._destructor();
 	}
 
@@ -187,6 +212,7 @@ export class ForceGraph {
 		this.instance.d3Force("x", forceX(0).strength(center));
 		this.instance.d3Force("y", forceY(0).strength(center));
 		this.instance.d3Force("z", forceZ(0).strength(center));
+		this.instance.d3Force("cluster", this.clusterForce());
 		if (reheat) this.instance.d3ReheatSimulation();
 	}
 
@@ -369,7 +395,258 @@ export class ForceGraph {
 			new Map(nodes.map((n, i) => [n.id, i] as [string, number])),
 			new Map()
 		);
+		this.computeClusters();
 		return this.graph;
+	}
+
+	// ====================== Clusters ====================== //
+
+	// Detects communities of notes and assigns their colors, biggest cluster
+	// first so colors stay stable as the vault grows. Affinity between notes is
+	// their links plus the tags they share; each tag adds a total weight of 1
+	// per note, so tags on nearly every note count for little. Tags and missing
+	// notes on screen then take the cluster most of their notes belong to.
+	private computeClusters() {
+		this.clusters = [];
+		this.clusterColorOf.clear();
+		this.clusterIndexOf.clear();
+		const groups = this.settings.groups;
+		const files = this.graph.nodes.filter(
+			(n) => n.kind === "note" || n.kind === "attachment"
+		);
+		if (groups.colorByCluster && files.length > 0) {
+			const fileIds = new Set(files.map((n) => n.id));
+			const edges: [string, string, number][] = [];
+			this.graph.links.forEach((l) => {
+				const [s, t] = [endpointId(l.source), endpointId(l.target)];
+				if (fileIds.has(s) && fileIds.has(t)) edges.push([s, t, 1]);
+			});
+			const notesByTag = new Map<string, string[]>();
+			files.forEach((n) => n.tags.forEach((tag) => pushTo(notesByTag, tag, n.id)));
+			const hubs: string[] = [];
+			notesByTag.forEach((ids, tag) => {
+				if (ids.length < 2) return;
+				if (ids.length <= TAG_PAIR_LIMIT) {
+					const w = 1 / (ids.length - 1);
+					for (let i = 0; i < ids.length; i++)
+						for (let j = i + 1; j < ids.length; j++) edges.push([ids[i], ids[j], w]);
+				} else {
+					// a common tag: each of its notes links to one hub, with the
+					// same total weight per note as the pairs would give
+					const hub = `\u0000tag-hub:${tag}`;
+					hubs.push(hub);
+					ids.forEach((id) => edges.push([id, hub, 1]));
+				}
+			});
+
+			// clustering only depends on the notes, their edges and the count,
+			// so a search or setting that leaves those alone reuses the last result
+			const nodeIds = [...fileIds].sort().concat(hubs.sort());
+			const key =
+				`${groups.clusterCount}\n${nodeIds.join("\n")}\n` +
+				edges.map(([a, b, w]) => `${a}\u0001${b}\u0001${w}`).join("\n");
+			let community: Map<string, number>;
+			if (this.clusterCache?.key === key) community = this.clusterCache.community;
+			else {
+				community = clusterInto(nodeIds, edges, groups.clusterCount);
+				hubs.forEach((h) => community.delete(h));
+				this.clusterCache = { key, community };
+			}
+
+			// tags and missing notes join their neighbors' most common cluster
+			const assignment = new Map(community);
+			const neighborsOf = new Map<string, string[]>();
+			this.graph.links.forEach((l) => {
+				const [s, t] = [endpointId(l.source), endpointId(l.target)];
+				pushTo(neighborsOf, s, t);
+				pushTo(neighborsOf, t, s);
+			});
+			this.graph.nodes.forEach((n) => {
+				if (fileIds.has(n.id)) return;
+				const votes = new Map<number, number>();
+				(neighborsOf.get(n.id) ?? []).forEach((m) => {
+					const c = community.get(m);
+					if (c !== undefined) votes.set(c, (votes.get(c) ?? 0) + 1);
+				});
+				let best: number | undefined;
+				votes.forEach((v, c) => {
+					if (best === undefined || v > (votes.get(best) ?? 0)) best = c;
+				});
+				if (best !== undefined) assignment.set(n.id, best);
+			});
+			this.makeClustersConnected(assignment, neighborsOf, fileIds);
+
+			const byCommunity = new Map<number, Node[]>();
+			this.graph.nodes.forEach((node) => {
+				const c = assignment.get(node.id);
+				if (c === undefined) return;
+				pushTo(byCommunity, c, node);
+			});
+			const noteCount = (members: Node[]) =>
+				members.filter((n) => fileIds.has(n.id)).length;
+			const sorted = [...byCommunity.values()]
+				.filter((members) => noteCount(members) >= MIN_CLUSTER_SIZE)
+				.sort(
+					(a, b) =>
+						noteCount(b) - noteCount(a) ||
+						(a[0].id < b[0].id ? -1 : 1)
+				)
+				// pieces split off for connectivity don't count toward the groups
+				.slice(0, groups.clusterCount);
+			this.clusters = sorted.map((members, i) => {
+				// name a cluster after its best-connected note
+				const notes = members.filter((n) => fileIds.has(n.id));
+				const hub = notes.sort((a, b) => this.degree(b) - this.degree(a))[0];
+				const color = clusterColor(i);
+				members.forEach((n) => {
+					this.clusterColorOf.set(n.id, color);
+					this.clusterIndexOf.set(n.id, i);
+				});
+				return {
+					color,
+					name: displayName(hub),
+					noteCount: notes.length,
+					members: new Set(members.map((n) => n.id)),
+				};
+			});
+		}
+		this.renderLegend();
+	}
+
+	// Every cluster must be one connected piece over the links on screen
+	// (shared tags can group notes that have no visible link). A detached
+	// piece joins the cluster it has the most links to, or becomes its own.
+	private makeClustersConnected(
+		assignment: Map<string, number>,
+		neighborsOf: Map<string, string[]>,
+		fileIds: Set<string>
+	) {
+		let nextId = Math.max(-1, ...assignment.values()) + 1;
+		for (let round = 0; round < 5; round++) {
+			// connected pieces of each cluster
+			const pieces: { cluster: number; ids: string[]; notes: number }[] = [];
+			const seen = new Set<string>();
+			assignment.forEach((cluster, start) => {
+				if (seen.has(start)) return;
+				const ids: string[] = [];
+				const stack = [start];
+				seen.add(start);
+				while (stack.length) {
+					const id = stack.pop() as string;
+					ids.push(id);
+					(neighborsOf.get(id) ?? []).forEach((m) => {
+						if (!seen.has(m) && assignment.get(m) === cluster) {
+							seen.add(m);
+							stack.push(m);
+						}
+					});
+				}
+				pieces.push({ cluster, ids, notes: ids.filter((i) => fileIds.has(i)).length });
+			});
+
+			// keep the biggest piece of each cluster; move the others
+			const main = new Map<number, (typeof pieces)[number]>();
+			pieces.forEach((p) => {
+				const current = main.get(p.cluster);
+				if (!current || p.notes > current.notes || (p.notes === current.notes && p.ids.length > current.ids.length))
+					main.set(p.cluster, p);
+			});
+			const detached = pieces.filter((p) => main.get(p.cluster) !== p);
+			if (detached.length === 0) return;
+
+			detached.forEach((piece) => {
+				const inPiece = new Set(piece.ids);
+				const votes = new Map<number, number>();
+				piece.ids.forEach((id) =>
+					(neighborsOf.get(id) ?? []).forEach((m) => {
+						const c = assignment.get(m);
+						if (!inPiece.has(m) && c !== undefined && c !== piece.cluster)
+							votes.set(c, (votes.get(c) ?? 0) + 1);
+					})
+				);
+				let target = -1;
+				votes.forEach((v, c) => {
+					if (target === -1 || v > (votes.get(target) ?? 0)) target = c;
+				});
+				const cluster = target === -1 ? nextId++ : target;
+				piece.ids.forEach((id) => assignment.set(id, cluster));
+			});
+		}
+	}
+
+	// Pulls each cluster's members toward the cluster's center, so a group
+	// sits together in space
+	private clusterForce() {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let nodes: any[] = [];
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const force = (alpha: number) => {
+			const strength = this.settings.groups.clusterPull * 0.25 * alpha;
+			if (strength === 0 || this.clusters.length === 0) return;
+			const centers = new Map<number, { x: number; y: number; z: number; n: number }>();
+			nodes.forEach((node) => {
+				const c = this.clusterIndexOf.get(node.id);
+				if (c === undefined) return;
+				const center = centers.get(c) ?? { x: 0, y: 0, z: 0, n: 0 };
+				center.x += node.x;
+				center.y += node.y;
+				center.z += node.z ?? 0;
+				center.n++;
+				centers.set(c, center);
+			});
+			nodes.forEach((node) => {
+				const c = this.clusterIndexOf.get(node.id);
+				const center = c === undefined ? undefined : centers.get(c);
+				if (!center) return;
+				node.vx += (center.x / center.n - node.x) * strength;
+				node.vy += (center.y / center.n - node.y) * strength;
+				node.vz = (node.vz ?? 0) + (center.z / center.n - (node.z ?? 0)) * strength;
+			});
+		};
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		force.initialize = (n: any[]) => (nodes = n);
+		return force;
+	}
+
+	private renderLegend() {
+		const el = this.legendEl;
+		if (!el) return;
+		el.empty();
+		el.toggleClass("is-hidden", this.clusters.length === 0);
+		this.clusters.slice(0, MAX_LEGEND_ITEMS).forEach((cluster) => {
+			const item = el.createDiv({ cls: "graph-3d-cluster-item" });
+			const dot = item.createSpan({ cls: "graph-3d-cluster-dot" });
+			dot.style.backgroundColor = cluster.color;
+			item.createSpan({ cls: "graph-3d-cluster-name", text: cluster.name });
+			item.createSpan({
+				cls: "graph-3d-cluster-count",
+				text: String(cluster.noteCount),
+			});
+			item.addEventListener("mouseenter", () => this.highlightCluster(cluster));
+			item.addEventListener("mouseleave", () => this.highlightCluster(null));
+			item.addEventListener("click", () =>
+				this.instance.zoomToFit(600, 60, (n: Node) => cluster.members.has(n.id))
+			);
+		});
+		const hidden = this.clusters.length - MAX_LEGEND_ITEMS;
+		if (hidden > 0)
+			el.createDiv({ cls: "graph-3d-cluster-more", text: `+${hidden} more` });
+	}
+
+	private highlightCluster(cluster: Cluster | null) {
+		this.clearHighlights();
+		this.hoveredNode = null;
+		if (cluster) {
+			cluster.members.forEach((id) => this.highlightedNodes.add(id));
+			this.graph.links.forEach((link) => {
+				if (
+					cluster.members.has(endpointId(link.source)) &&
+					cluster.members.has(endpointId(link.target))
+				)
+					this.highlightedLinks.add(link);
+			});
+		}
+		this.updateHighlight();
 	}
 
 	// 2D graph color groups first, then this plugin's groups (last match wins)
@@ -499,6 +776,14 @@ export class ForceGraph {
 		}
 		if (path.startsWith("groups")) {
 			this.compileColorGroups();
+			if (path === "groups.colorByCluster" || path === "groups.clusterCount") {
+				this.computeClusters();
+				this.applyForces(true);
+			}
+			if (path === "groups.clusterPull") {
+				this.applyForces(true);
+				return;
+			}
 		}
 
 		if (path === "display.nodeSize") {
@@ -571,17 +856,27 @@ export class ForceGraph {
 		const theme = this.theme;
 		if (this.hasHighlight()) {
 			if (node === this.hoveredNode) return theme.interactiveAccentHover;
-			if (this.isHighlightedNode(node)) return theme.textAccent;
+			if (this.isHighlightedNode(node))
+				// with cluster colors on, keep them so the cluster stays recognizable
+				return this.clusterColorOf.size > 0
+					? this.baseColor(node)
+					: theme.textAccent;
 			return ObsidianTheme.withAlpha(theme.textFaint, 0.35);
 		}
 		return this.baseColor(node);
 	};
 
-	// the core graph's type colors; color groups override
+	// cluster color, then the core graph's type colors; color groups override
 	private baseColor(node: Node): string {
 		const theme = this.theme;
+		const cluster = this.clusterColorOf.get(node.id);
 		let color: string;
-		if (node.kind === "tag") color = theme.graphTag;
+		if (cluster)
+			color =
+				node.kind === "unresolved"
+					? ObsidianTheme.withAlpha(cluster, 0.5)
+					: cluster;
+		else if (node.kind === "tag") color = theme.graphTag;
 		else if (node.kind === "unresolved") color = theme.graphUnresolved;
 		else if (this.degree(node) === 0) color = theme.textFaint;
 		else if (node.kind === "attachment") color = theme.graphAttachment;
