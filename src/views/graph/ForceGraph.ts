@@ -82,7 +82,11 @@ export class ForceGraph {
 
 	private readonly labels = new Map<string, THREE.Sprite>();
 	private readonly labelFade = new Map<string, number>();
+	// framing: while a new layout settles the camera keeps the whole graph in
+	// view, until the layout stops (then one final fit) or the user moves it
 	private hasFramedGraph = false;
+	private layoutSettled = false;
+	private userMovedCamera = false;
 	private filterTimer = 0;
 	private animationTimer = 0;
 	private readonly unsubscribers: (() => void)[] = [];
@@ -125,6 +129,12 @@ export class ForceGraph {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const controls = this.instance.controls() as any;
 		controls?.addEventListener?.("change", this.updateLabelFade);
+		// the user took the camera: stop fitting the graph for them
+		const onUserCamera = () => (this.userMovedCamera = true);
+		controls?.addEventListener?.("start", onUserCamera);
+
+		const resizeObserver = new ResizeObserver(this.onContainerResized);
+		resizeObserver.observe(this.rootHtmlElement);
 
 		this.unsubscribers.push(() => {
 			EventBus.off("graph-changed", this.onVaultGraphChanged);
@@ -132,6 +142,8 @@ export class ForceGraph {
 			EventBus.off("core-graph-options-changed", this.onCoreOptionsChanged);
 			this.rootHtmlElement.removeEventListener("mousemove", trackMouse);
 			controls?.removeEventListener?.("change", this.updateLabelFade);
+			controls?.removeEventListener?.("start", onUserCamera);
+			resizeObserver.disconnect();
 			window.clearTimeout(this.filterTimer);
 			window.clearTimeout(this.animationTimer);
 		});
@@ -181,7 +193,7 @@ export class ForceGraph {
 			// settle most of the layout before the first frame, then frame it
 			.warmupTicks(WARMUP_TICKS)
 			.cooldownTime(2500)
-			.onEngineTick(this.updateLabelFade)
+			.onEngineTick(this.onEngineTick)
 			.onEngineStop(this.frameGraph)
 			.graphData(this.getGraphData());
 	}
@@ -224,12 +236,110 @@ export class ForceGraph {
 		if (reheat) this.instance.d3ReheatSimulation();
 	}
 
-	// Zoom to fit the whole graph once its layout settles
+	private get hasSize() {
+		return this.rootHtmlElement.offsetWidth > 0 && this.rootHtmlElement.offsetHeight > 0;
+	}
+
+	// Moves the camera, keeping its viewing direction, to the closest point
+	// from which every node (or those passing `include`) is in view, with a
+	// margin for labels. Unlike zoomToFit, which sizes the view for the
+	// graph's largest extent in any direction (depth included) and ignores
+	// the view's shape, this measures the graph as the camera sees it, so the
+	// graph fills the screen.
+	private fitCamera(ms: number, include: (node: Node) => boolean = () => true) {
+		const nodes = (this.instance.graphData().nodes as Positioned[]).filter(
+			(n) => n.x !== undefined && include(n)
+		);
+		const { offsetWidth: width, offsetHeight: height } = this.rootHtmlElement;
+		if (nodes.length === 0 || !width || !height) return;
+
+		// center of the nodes' bounding box
+		const lo = [Infinity, Infinity, Infinity];
+		const hi = [-Infinity, -Infinity, -Infinity];
+		nodes.forEach((n) =>
+			[n.x ?? 0, n.y ?? 0, n.z ?? 0].forEach((v, k) => {
+				lo[k] = Math.min(lo[k], v);
+				hi[k] = Math.max(hi[k], v);
+			})
+		);
+		const c = lo.map((v, k) => (v + hi[k]) / 2);
+
+		// the camera's axes: back (center -> camera), right and up
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const camera = this.instance.camera() as any;
+		const pos = camera.position;
+		let back = [pos.x - c[0], pos.y - c[1], pos.z - c[2]];
+		const bl = Math.hypot(back[0], back[1], back[2]);
+		back = bl > 1e-6 ? back.map((v) => v / bl) : [0, 0, 1];
+		const worldUp = Math.abs(back[1]) > 0.99 ? [0, 0, 1] : [0, 1, 0];
+		const cross = (a: number[], b: number[]) => [
+			a[1] * b[2] - a[2] * b[1],
+			a[2] * b[0] - a[0] * b[2],
+			a[0] * b[1] - a[1] * b[0],
+		];
+		let right = cross(worldUp, back);
+		const rl = Math.hypot(right[0], right[1], right[2]) || 1;
+		right = right.map((v) => v / rl);
+		const up = cross(back, right);
+		const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+		// view half-angles, less a margin of the view on each side
+		const margin = Math.min(width, height) * 0.05 + 12;
+		const tanHalfFov = Math.tan((((camera.fov as number) ?? 40) * Math.PI) / 360);
+		const tanV = tanHalfFov * Math.max(0.2, 1 - (2 * margin) / height);
+		const tanH = tanHalfFov * (width / height) * Math.max(0.2, 1 - (2 * margin) / width);
+		// labels hang below the node
+		const below = this.display.showLabels ? this.display.nodeSize * LABEL_SCALE + 2 : 0;
+
+		// closest camera distance from which each node fits, sideways and
+		// vertically (a node nearer the camera needs more room)
+		let distance = 0;
+		nodes.forEach((n) => {
+			const q = [(n.x ?? 0) - c[0], (n.y ?? 0) - c[1], (n.z ?? 0) - c[2]];
+			const r = this.nodeRadius(n) * 1.3;
+			const depth = dot(q, back);
+			distance = Math.max(
+				distance,
+				depth + (Math.abs(dot(q, right)) + r) / tanH,
+				depth + (Math.abs(dot(q, up)) + r + below) / tanV
+			);
+		});
+		distance = Math.max(distance, 40);
+		this.instance.cameraPosition(
+			{ x: c[0] + back[0] * distance, y: c[1] + back[1] * distance, z: c[2] + back[2] * distance },
+			{ x: c[0], y: c[1], z: c[2] },
+			ms
+		);
+	}
+
+	private get shouldFollowLayout() {
+		return !this.hasFramedGraph && !this.userMovedCamera && this.hasSize;
+	}
+
+	// While a new layout settles, keep it all in view
+	private onEngineTick = () => {
+		this.updateLabelFade();
+		if (this.shouldFollowLayout) this.fitCamera(0);
+	};
+
+	// The layout stopped: one last, smooth fit. A view hidden while loading
+	// (e.g. a background tab at startup) is framed when it is first shown.
 	private frameGraph = () => {
 		this.updateLabelFade();
-		if (this.hasFramedGraph) return;
+		this.layoutSettled = true;
+		if (!this.shouldFollowLayout) return;
 		this.hasFramedGraph = true;
-		this.instance.zoomToFit(500, 40);
+		this.fitCamera(400);
+	};
+
+	// the view was resized or shown: match the canvas to it, and frame the
+	// graph if that hasn't happened yet
+	private onContainerResized = () => {
+		if (!this.hasSize) return;
+		this.updateDimensions();
+		if (!this.shouldFollowLayout) return;
+		this.fitCamera(0);
+		if (this.layoutSettled) this.hasFramedGraph = true;
 	};
 
 	// ====================== Data and filters ====================== //
@@ -662,9 +772,11 @@ export class ForceGraph {
 			});
 			item.addEventListener("mouseenter", () => this.highlightCluster(cluster));
 			item.addEventListener("mouseleave", () => this.highlightCluster(null));
-			item.addEventListener("click", () =>
-				this.instance.zoomToFit(600, 60, (n: Node) => cluster.members.has(n.id))
-			);
+			item.addEventListener("click", () => {
+				// the camera is the user's now; don't fit the whole graph over it
+				this.userMovedCamera = true;
+				this.fitCamera(600, (n) => cluster.members.has(n.id));
+			});
 		});
 		const hidden = this.clusters.length - MAX_LEGEND_ITEMS;
 		if (hidden > 0)
@@ -719,7 +831,11 @@ export class ForceGraph {
 
 		this.clearHighlights();
 		this.hoveredNode = null;
-		if (reframe) this.hasFramedGraph = false;
+		this.layoutSettled = false;
+		if (reframe) {
+			this.hasFramedGraph = false;
+			this.userMovedCamera = false;
+		}
 		this.instance.graphData(graph);
 		this.applyForces();
 		this.rebuildLabels();
