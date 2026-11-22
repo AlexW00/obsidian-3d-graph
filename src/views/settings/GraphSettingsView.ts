@@ -1,5 +1,8 @@
 import { TreeItem } from "../atomics/TreeItem";
-import DisplaySettingsView from "./categories/DisplaySettingsView";
+import DisplaySettingsView, {
+	LinkSettingsView,
+	ParticleSettingsView,
+} from "./categories/DisplaySettingsView";
 import { FilterSettings } from "../../settings/categories/FilterSettings";
 import { GroupSettings } from "../../settings/categories/GroupSettings";
 import { DisplaySettings } from "../../settings/categories/DisplaySettings";
@@ -72,12 +75,13 @@ export class GraphSettingsView extends HTMLDivElement {
 				"Local graph",
 				LocalGraphSettingsView
 			);
-		this.appendSetting(
-			this.settingsState.createSubState("value.display", DisplaySettings),
-			"Display",
-			(setting, containerEl) =>
-				DisplaySettingsView(setting, containerEl, this.options.onAnimate)
+		// links and particles live in the display settings, shown as their own sections
+		const display = this.settingsState.createSubState("value.display", DisplaySettings);
+		this.appendSetting(display, "Display", (setting, containerEl) =>
+			DisplaySettingsView(setting, containerEl, this.options.onAnimate)
 		);
+		this.appendSetting(display, "Links", LinkSettingsView);
+		this.appendSetting(display, "Particles", ParticleSettingsView);
 		this.appendSetting(
 			this.settingsState.createSubState("value.forces", ForceSettings),
 			"Forces",
