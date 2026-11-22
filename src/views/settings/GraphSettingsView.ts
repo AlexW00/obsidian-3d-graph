@@ -10,17 +10,30 @@ import GroupSettingsView from "./categories/GroupSettingsView";
 import FilterSettingsView from "./categories/FilterSettingsView";
 import GraphSettings from "src/settings/GraphSettings";
 import ObsidianTheme from "src/util/ObsidianTheme";
+import { LocalGraphSettings } from "../../settings/categories/LocalGraphSettings";
+import LocalGraphSettingsView from "./categories/LocalGraphSettingsView";
+
+export interface GraphSettingsViewOptions {
+	isLocalGraph: boolean;
+	onAnimate: () => void;
+}
 
 export class GraphSettingsView extends HTMLDivElement {
 	private settingsButton: ExtraButtonComponent;
 	private graphControls: HTMLDivElement;
 	private readonly settingsState: State<GraphSettings>;
 	private readonly theme: ObsidianTheme;
+	private readonly options: GraphSettingsViewOptions;
 
-	constructor(settingsState: State<GraphSettings>, theme: ObsidianTheme) {
+	constructor(
+		settingsState: State<GraphSettings>,
+		theme: ObsidianTheme,
+		options: GraphSettingsViewOptions
+	) {
 		super();
 		this.settingsState = settingsState;
 		this.theme = theme;
+		this.options = options;
 	}
 
 	private isCollapsedState = new State(true);
@@ -51,10 +64,17 @@ export class GraphSettingsView extends HTMLDivElement {
 			"Groups",
 			(...args) => GroupSettingsView(...args, this.theme)
 		);
+		if (this.options.isLocalGraph)
+			this.appendSetting(
+				this.settingsState.createSubState("value.local", LocalGraphSettings),
+				"Local graph",
+				LocalGraphSettingsView
+			);
 		this.appendSetting(
 			this.settingsState.createSubState("value.display", DisplaySettings),
 			"Display",
-			DisplaySettingsView
+			(setting, containerEl) =>
+				DisplaySettingsView(setting, containerEl, this.options.onAnimate)
 		);
 		this.initListeners();
 		this.toggleCollapsed(this.isCollapsedState.value);
@@ -138,6 +158,7 @@ export class GraphSettingsView extends HTMLDivElement {
 	async disconnectedCallback() {
 		this.empty();
 		this.callbackUnregisterHandles.forEach((handle) => handle());
+		this.callbackUnregisterHandles = [];
 	}
 }
 

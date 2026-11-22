@@ -76,46 +76,6 @@ export default class Graph {
 		}
 	}
 
-	// Returns the local graph of a node
-	public getLocalGraph(nodeId: string): Graph {
-		const node = this.getNodeById(nodeId);
-		if (node) {
-			const nodes = [node, ...node.neighbors];
-			const links: Link[] = [];
-			const nodeIndex = new Map<string, number>();
-
-			nodes.forEach((node, index) => {
-				nodeIndex.set(node.id, index);
-			});
-
-			nodes.forEach((node, index) => {
-				const filteredLinks = node.links
-					.filter(
-						(link) =>
-							nodeIndex.has(link.target) &&
-							nodeIndex.has(link.source)
-					)
-					.map((link) => {
-						if (
-							!links.includes(link) &&
-							nodeIndex.has(link.target) &&
-							nodeIndex.has(link.source)
-						)
-							links.push(link);
-						return link;
-					});
-
-				node.links.splice(0, node.links.length, ...filteredLinks);
-			});
-
-			const linkIndex = Link.createLinkIndex(links);
-
-			return new Graph(nodes, links, nodeIndex, linkIndex);
-		} else {
-			return new Graph([], [], new Map(), new Map());
-		}
-	}
-
 	// Clones the graph
 	public clone = (): Graph => {
 		return new Graph(
@@ -126,32 +86,84 @@ export default class Graph {
 		);
 	};
 
-	// Creates a graph using the Obsidian API
+	// Creates a graph using the Obsidian API: files, resolved links, and
+	// (like the core graph) tag nodes and nodes for links to missing notes
 	public static createFromApp = (app: App): Graph => {
-		const [nodes, nodeIndex] = Node.createFromFiles(app.vault.getFiles()),
-			[links, linkIndex] = Link.createFromCache(
-				app.metadataCache.resolvedLinks,
-				nodes,
-				nodeIndex
-			);
-		return new Graph(nodes, links, nodeIndex, linkIndex);
-	};
+		const [nodes, nodeIndex] = Node.createFromFiles(app, app.vault.getFiles());
+		const links: Link[] = [];
+		const seen = new Map<string, Link>();
 
-	// updates this graph with new data from the Obsidian API
-	public update = (app: App) => {
-		const newGraph = Graph.createFromApp(app);
+		const getOrAddNode = (id: string, create: () => Node): Node => {
+			const index = nodeIndex.get(id);
+			if (index !== undefined) return nodes[index];
+			const node = create();
+			nodeIndex.set(id, nodes.length);
+			nodes.push(node);
+			return node;
+		};
+		const connect = (source: Node, target: Node) => {
+			if (source === target) return;
+			const key = `${source.id}\u0000${target.id}`;
+			const reverse = `${target.id}\u0000${source.id}`;
+			if (seen.has(key)) return;
+			const existing = seen.get(reverse);
+			if (existing) {
+				existing.mutual = true;
+				return;
+			}
+			const link = source.addNeighbor(target);
+			if (link) {
+				seen.set(key, link);
+				links.push(link);
+			}
+		};
 
-		this.nodes.splice(0, this.nodes.length, ...newGraph.nodes);
-		this.links.splice(0, this.nodes.length, ...newGraph.links);
-
-		this.nodeIndex.clear();
-		newGraph.nodeIndex.forEach((value, key) => {
-			this.nodeIndex.set(key, value);
+		const { resolvedLinks, unresolvedLinks } = app.metadataCache;
+		Object.entries(resolvedLinks).forEach(([sourcePath, targets]) => {
+			const sourceIndex = nodeIndex.get(sourcePath);
+			if (sourceIndex === undefined) return;
+			Object.keys(targets).forEach((targetPath) => {
+				const targetIndex = nodeIndex.get(targetPath);
+				if (targetIndex !== undefined)
+					connect(nodes[sourceIndex], nodes[targetIndex]);
+			});
 		});
 
-		this.linkIndex.clear();
-		newGraph.linkIndex.forEach((value, key) => {
-			this.linkIndex.set(key, value);
+		Object.entries(unresolvedLinks).forEach(([sourcePath, targets]) => {
+			const sourceIndex = nodeIndex.get(sourcePath);
+			if (sourceIndex === undefined) return;
+			Object.keys(targets).forEach((linktext) => {
+				const id = Node.unresolvedId(linktext);
+				const target = getOrAddNode(
+					id,
+					() => new Node(linktext, id, false, 10, [], [], [], "unresolved")
+				);
+				connect(nodes[sourceIndex], target);
+			});
 		});
+
+		nodes
+			.filter((node) => node.kind === "note")
+			.forEach((note) => {
+				note.tags.forEach((tag) => {
+					const id = Node.tagId(tag);
+					const tagNode = getOrAddNode(
+						id,
+						() => new Node(`#${tag}`, id, false, 10, [], [], [tag], "tag")
+					);
+					connect(note, tagNode);
+				});
+			});
+
+		return new Graph(nodes, links, nodeIndex, Link.createLinkIndex(links));
 	};
+
+	// A cheap fingerprint of the graph's structure, to skip no-op refreshes
+	public signature(): string {
+		return (
+			this.nodes.map((n) => n.id).join("\n") +
+			"\n--\n" +
+			this.links.map((l) => `${l.source}${l.mutual ? "<>" : ">"}${l.target}`).join("\n")
+		);
+	}
 }

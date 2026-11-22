@@ -55,3 +55,23 @@
 	display: none;
 	visibility: hidden;
 }
+
+/* own filters are inactive while "Match 2D graph" is on */
+.graph-3d-view .setting-item.is-disabled {
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.graph-3d-view .graph-control-animate {
+	padding: 8px 0 4px;
+}
+
+.graph-3d-view .graph-control-animate button {
+	width: 100%;
+}
+
+/* full-width search field, like the core graph's */
+.graph-3d-view .setting-item.mod-search-setting .setting-item-control,
+.graph-3d-view .setting-item.mod-search-setting .search-input-container {
+	width: 100%;
+}

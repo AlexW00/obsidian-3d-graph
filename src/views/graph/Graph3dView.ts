@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, Menu, TFile, WorkspaceLeaf } from "obsidian";
 import Node from "../../graph/Node";
 import { ForceGraph } from "./ForceGraph";
 import { GraphSettingsView } from "../settings/GraphSettingsView";
@@ -21,7 +21,7 @@ export class Graph3dView extends ItemView {
 
 	onunload() {
 		super.onunload();
-		this.forceGraph?.getInstance()._destructor();
+		this.forceGraph?.destroy();
 	}
 
 	showGraph() {
@@ -34,7 +34,11 @@ export class Graph3dView extends ItemView {
 			this.appendGraph(viewContent);
 			const settings = new GraphSettingsView(
 				this.plugin.settingsState,
-				this.plugin.theme
+				this.plugin.theme,
+				{
+					isLocalGraph: this.isLocalGraph,
+					onAnimate: () => this.forceGraph.animate(),
+				}
 			);
 			viewContent.appendChild(settings);
 		} else {
@@ -43,16 +47,25 @@ export class Graph3dView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "3D-Graph";
+		return this.isLocalGraph ? "Local 3D graph" : "3D graph";
 	}
 
 	getViewType(): string {
 		return "3d_graph_view";
 	}
 
+	getIcon(): string {
+		return "glasses";
+	}
+
 	onResize() {
 		super.onResize();
-		this.forceGraph.updateDimensions();
+		this.forceGraph?.updateDimensions();
+	}
+
+	private fileFor(node: Node): TFile | null {
+		const file = this.app.vault.getAbstractFileByPath(node.path);
+		return file instanceof TFile ? file : null;
 	}
 
 	private appendGraph(viewContent: HTMLElement) {
@@ -62,22 +75,53 @@ export class Graph3dView extends ItemView {
 			this.isLocalGraph
 		);
 
+		// Cmd/Ctrl + hover shows a page preview, like the 2D graph
+		this.forceGraph.onHover = (node, event) => {
+			if (!node || !event || node.kind === "tag") return;
+			this.app.workspace.trigger("hover-link", {
+				event,
+				source: "3d-graph",
+				hoverParent: this,
+				targetEl: viewContent,
+				linktext: node.kind === "unresolved" ? node.name : node.path,
+				sourcePath: "",
+			});
+		};
+
 		this.forceGraph
 			.getInstance()
-			.onNodeClick((node: Node, mouseEvent: MouseEvent) => {
-				const clickedNodeFile = this.app.vault
-					.getFiles()
-					.find((f) => f.path === node.path);
-
-				if (clickedNodeFile) {
-					if (this.isLocalGraph) {
-						this.app.workspace
-							.getLeaf(false)
-							.openFile(clickedNodeFile);
-					} else {
-						this.leaf.openFile(clickedNodeFile);
-					}
+			.onNodeClick((node: Node, event: MouseEvent) => {
+				const newTab = event.metaKey || event.ctrlKey;
+				if (node.kind === "tag") {
+					// a tag opens a search for it
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const search = (this.app as any).internalPlugins?.getPluginById?.(
+						"global-search"
+					)?.instance;
+					search?.openGlobalSearch?.(`tag:${node.name}`);
+					return;
 				}
+				if (node.kind === "unresolved") {
+					// like the 2D graph: clicking a missing note creates it
+					this.app.workspace.openLinkText(node.name, "", newTab);
+					return;
+				}
+				const file = this.fileFor(node);
+				if (!file) return;
+				const leaf = newTab
+					? this.app.workspace.getLeaf("tab")
+					: this.isLocalGraph
+					? this.app.workspace.getLeaf(false)
+					: this.leaf;
+				leaf.openFile(file);
+			})
+			.onNodeRightClick((node: Node, event: MouseEvent) => {
+				// the file's context menu, like the 2D graph
+				const file = this.fileFor(node);
+				if (!file) return;
+				const menu = new Menu();
+				this.app.workspace.trigger("file-menu", menu, file, "graph-context-menu", this.leaf);
+				menu.showAtMouseEvent(event);
 			});
 	}
 }

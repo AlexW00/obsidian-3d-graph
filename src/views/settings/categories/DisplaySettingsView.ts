@@ -1,74 +1,45 @@
+import { ButtonComponent, Setting } from "obsidian";
 import { DisplaySettings } from "../../../settings/categories/DisplaySettings";
-import SimpleSliderSetting, {
-	DEFAULT_SLIDER_STEP_OPTIONS,
-	SliderOptions,
-} from "../../atomics/SimpleSliderSetting";
+import SimpleSliderSetting from "../../atomics/SimpleSliderSetting";
 import State from "../../../util/State";
+
+type NumberKey =
+	| "nodeSize"
+	| "linkThickness"
+	| "particleSize"
+	| "particleCount";
 
 const DisplaySettingsView = (
 	displaySettings: State<DisplaySettings>,
-	containerEl: HTMLElement
+	containerEl: HTMLElement,
+	onAnimate?: () => void
 ) => {
-	NodeSizeSetting(displaySettings, containerEl);
-	LinkThicknessSetting(displaySettings, containerEl);
-	ParticleSizeSetting(displaySettings, containerEl);
-	ParticleCountSetting(displaySettings, containerEl);
-};
+	const display = displaySettings.value;
+	const toggle = (name: string, key: "showArrows") =>
+		new Setting(containerEl).setName(name).addToggle((t) =>
+			t.setValue(display[key]).onChange((value) => {
+				displaySettings.value[key] = value;
+			})
+		);
+	const slider = (name: string, key: NumberKey, min: number, max: number, step: number) =>
+		SimpleSliderSetting(
+			containerEl,
+			{ name, value: display[key], stepOptions: { min, max, step } },
+			(value) => {
+				displaySettings.value[key] = value;
+			}
+		);
 
-const NodeSizeSetting = (
-	displaySettings: State<DisplaySettings>,
-	containerEl: HTMLElement
-) => {
-	const options: SliderOptions = {
-		name: "Node Size",
-		value: displaySettings.value.nodeSize,
-		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS,
-	};
-	return SimpleSliderSetting(containerEl, options, (value) => {
-		displaySettings.value.nodeSize = value;
-	});
-};
+	toggle("Arrows", "showArrows");
+	slider("Node size", "nodeSize", 1, 20, 1);
+	slider("Link thickness", "linkThickness", 1, 10, 0.5);
+	slider("Particle count", "particleCount", 0, 10, 1);
+	slider("Particle size", "particleSize", 0.5, 8, 0.5);
 
-const LinkThicknessSetting = (
-	displaySettings: State<DisplaySettings>,
-	containerEl: HTMLElement
-) => {
-	const options: SliderOptions = {
-		name: "Link Thickness",
-		value: displaySettings.value.linkThickness,
-		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS,
-	};
-	return SimpleSliderSetting(containerEl, options, (value) => {
-		displaySettings.value.linkThickness = value;
-	});
-};
-
-const ParticleSizeSetting = (
-	displaySettings: State<DisplaySettings>,
-	containerEl: HTMLElement
-) => {
-	const options: SliderOptions = {
-		name: "Particle Size",
-		value: displaySettings.value.particleSize,
-		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS,
-	};
-	return SimpleSliderSetting(containerEl, options, (value) => {
-		displaySettings.value.particleSize = value;
-	});
-};
-
-const ParticleCountSetting = (
-	displaySettings: State<DisplaySettings>,
-	containerEl: HTMLElement
-) => {
-	const options: SliderOptions = {
-		name: "Particle Count",
-		value: displaySettings.value.particleCount,
-		stepOptions: DEFAULT_SLIDER_STEP_OPTIONS,
-	};
-	return SimpleSliderSetting(containerEl, options, (value) => {
-		displaySettings.value.particleCount = value;
-	});
+	if (onAnimate) {
+		const buttonContainer = containerEl.createDiv({ cls: "graph-control-animate" });
+		new ButtonComponent(buttonContainer).setButtonText("Animate").onClick(onAnimate);
+	}
 };
 
 export default DisplaySettingsView;
