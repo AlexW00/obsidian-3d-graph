@@ -78,6 +78,7 @@ interface Mote {
 	speed: number;
 	angle: number;
 	bow: number; // 0..1, scaled by spread
+	reverse: boolean; // flows target -> source (half the lines of a two-way link)
 	size: number;
 	twinkle: number;
 }
@@ -107,8 +108,12 @@ export class MoteField {
 			const key = `${endId(link.source as Endpoint)}|${endId(link.target as Endpoint)}`;
 			const n = Math.max(0, Math.round(style.count(link)));
 			if (n === 0) return;
-			// a few field lines per link; motes are shared out between them
-			const lineCount = Math.max(1, Math.min(n, Math.round(Math.sqrt(n) * 0.9)));
+			// a few field lines per link; motes are shared out between them.
+			// Notes that link to each other get lines flowing both ways, so a
+			// two-way link needs an even number of lines, half each way.
+			const mutual = link.mutual === true && n >= 2;
+			let lineCount = Math.max(1, Math.min(n, Math.round(Math.sqrt(n) * 0.9)));
+			if (mutual) lineCount = Math.min(n - (n % 2), lineCount + (lineCount % 2));
 			const turn = hash01(`${key}#turn`) * Math.PI * 2;
 			const lines = Array.from({ length: lineCount }, (_, l) => {
 				const r = (salt: string) => hash01(`${key}#line${l}${salt}`);
@@ -119,7 +124,8 @@ export class MoteField {
 					bow: 0.15 + 0.85 * Math.pow(r("b"), 0.8),
 					speed: 0.8 + 0.4 * r("s"),
 					offset: r("o"),
-					size: n,
+					// alternate lines run the other way on a two-way link
+					reverse: mutual && l % 2 === 1,
 				};
 			});
 			const perLine = new Array(lineCount).fill(0);
@@ -135,6 +141,7 @@ export class MoteField {
 					speed: line.speed,
 					angle: line.angle,
 					bow: line.bow,
+					reverse: line.reverse,
 					size: 0.6 + 0.7 * r("z"),
 					twinkle: r("t") * Math.PI * 2,
 				});
@@ -236,7 +243,10 @@ export class MoteField {
 				alpha[i] = 0;
 				return;
 			}
-			const t = (((m.phase + this.time * style.speed * m.speed) % 1) + 1) % 1;
+			const progress = (((m.phase + this.time * style.speed * m.speed) % 1) + 1) % 1;
+			// position along the arc, source (0) to target (1); color follows
+			// it, so a reversed mote starts in the target's color
+			const t = m.reverse ? 1 - progress : progress;
 			const bow = m.bow * style.spread * f.len;
 			const cos = Math.cos(m.angle) * bow;
 			const sin = Math.sin(m.angle) * bow;
