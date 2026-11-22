@@ -10,7 +10,9 @@ import GroupSettingsView from "./categories/GroupSettingsView";
 import FilterSettingsView from "./categories/FilterSettingsView";
 import GraphSettings from "src/settings/GraphSettings";
 import ObsidianTheme from "src/util/ObsidianTheme";
+import { ForceSettings } from "../../settings/categories/ForceSettings";
 import { LocalGraphSettings } from "../../settings/categories/LocalGraphSettings";
+import ForceSettingsView from "./categories/ForceSettingsView";
 import LocalGraphSettingsView from "./categories/LocalGraphSettingsView";
 
 export interface GraphSettingsViewOptions {
@@ -75,6 +77,11 @@ export class GraphSettingsView extends HTMLDivElement {
 			"Display",
 			(setting, containerEl) =>
 				DisplaySettingsView(setting, containerEl, this.options.onAnimate)
+		);
+		this.appendSetting(
+			this.settingsState.createSubState("value.forces", ForceSettings),
+			"Forces",
+			ForceSettingsView
 		);
 		this.initListeners();
 		this.toggleCollapsed(this.isCollapsedState.value);

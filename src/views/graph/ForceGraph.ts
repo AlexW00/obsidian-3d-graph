@@ -143,12 +143,39 @@ export class ForceGraph {
 
 	// ====================== Forces ====================== //
 
-	// A small pull toward the center keeps unlinked nodes from drifting off
-	// forever in 3D
-	private applyForces() {
-		this.instance.d3Force("x", forceX(0).strength(0.02));
-		this.instance.d3Force("y", forceY(0).strength(0.02));
-		this.instance.d3Force("z", forceZ(0).strength(0.02));
+	// The forces in effect, on the 2D graph's scales
+	private get forces() {
+		return this.settings.forces;
+	}
+
+	// Maps the 2D graph's force scales onto the 3D layout
+	// `reheat` restarts the layout; only valid once the layout exists, and
+	// not needed when new graph data restarts it anyway
+	private applyForces(reheat = false) {
+		const f = this.forces;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const charge = this.instance.d3Force("charge") as any;
+		charge?.strength?.(-f.repelStrength * 5);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const link = this.instance.d3Force("link") as any;
+		link?.distance?.(20 + f.linkDistance * 0.2);
+		link?.strength?.(
+			(l: Link) =>
+				f.linkStrength /
+				Math.max(
+					1,
+					Math.min(
+						this.visibleDegree.get(endpointId(l.source)) ?? 1,
+						this.visibleDegree.get(endpointId(l.target)) ?? 1
+					)
+				)
+		);
+		// a small floor keeps unlinked nodes from drifting off forever in 3D
+		const center = 0.02 + f.centerStrength * 0.1;
+		this.instance.d3Force("x", forceX(0).strength(center));
+		this.instance.d3Force("y", forceY(0).strength(center));
+		this.instance.d3Force("z", forceZ(0).strength(center));
+		if (reheat) this.instance.d3ReheatSimulation();
 	}
 
 	// Zoom to fit the whole graph once its layout settles
@@ -447,6 +474,10 @@ export class ForceGraph {
 			// typing in the search box fires on every keystroke
 			window.clearTimeout(this.filterTimer);
 			this.filterTimer = window.setTimeout(this.onFiltersChanged, 250);
+			return;
+		}
+		if (path.startsWith("forces")) {
+			this.applyForces(true);
 			return;
 		}
 		if (path.startsWith("groups")) {
