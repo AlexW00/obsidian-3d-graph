@@ -61,11 +61,15 @@ export class GraphSettingsView extends HTMLDivElement {
 	}
 
 	private initListeners() {
-		EventBus.on("did-reset-settings", () => {
+		const onReset = () => {
 			// Re append all settings
 			this.disconnectedCallback();
 			this.connectedCallback();
-		});
+		};
+		EventBus.on("did-reset-settings", onReset);
+		this.callbackUnregisterHandles.push(() =>
+			EventBus.off("did-reset-settings", onReset)
+		);
 		this.callbackUnregisterHandles.push(
 			this.isCollapsedState.onChange(this.onIsCollapsedChanged)
 		);
@@ -89,7 +93,6 @@ export class GraphSettingsView extends HTMLDivElement {
 	}
 
 	private onSettingsButtonClicked = () => {
-		console.log("settings button clicked");
 		this.isCollapsedState.value = !this.isCollapsedState.value;
 	};
 
@@ -116,13 +119,17 @@ export class GraphSettingsView extends HTMLDivElement {
 	private appendSetting<S>(
 		setting: S,
 		title: string,
-		view: (setting: S, containerEl: HTMLElement) => void
+		// may return a cleanup (e.g. an unsubscribe) to run when the view is rebuilt
+		view: (setting: S, containerEl: HTMLElement) => void | (() => void)
 	) {
 		const header = document.createElement("header");
 		header.classList.add("graph-control-section-header");
-		header.innerHTML = title;
+		header.textContent = title;
 		const item = new TreeItem(header, [
-			(containerEl: HTMLElement) => view(setting, containerEl),
+			(containerEl: HTMLElement) => {
+				const cleanup = view(setting, containerEl);
+				if (cleanup) this.callbackUnregisterHandles.push(cleanup);
+			},
 		]);
 		item.classList.add("is-collapsed");
 		this.graphControls.append(item);

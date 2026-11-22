@@ -8,6 +8,7 @@ const SimpleSliderSetting = (containerEl: HTMLElement, options: SliderOptions, o
 			(slider) => {
 				slider.setLimits(options.stepOptions.min, options.stepOptions.max, options.stepOptions.step)
 					.setValue(options.value)
+					.setDynamicTooltip()
 					.onChange(async (value) => {
 						onChange(value);
 					});

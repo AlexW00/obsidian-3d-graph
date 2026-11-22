@@ -15,7 +15,8 @@ const GroupSettingsView = (
 	NodeGroups(groupSettings, containerEl);
 	AddNodeGroupButton(groupSettings, containerEl, theme);
 
-	groupSettings.onChange((change: StateChange) => {
+	// returns the unsubscribe, so the settings view can drop it when rebuilt
+	return groupSettings.onChange((change: StateChange) => {
 		if (
 			(change.currentPath === "groups" && change.type === "add") ||
 			change.type === "delete"

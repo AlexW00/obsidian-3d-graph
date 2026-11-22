@@ -1,9 +1,12 @@
+import { setIcon } from "obsidian";
+
 export type HtmlBuilder = (containerEl: HTMLElement) => void;
 
 // Collapsable tree item, imitates Obsidian's tree items
 export class TreeItem extends HTMLDivElement {
 	private readonly $inner: HTMLElement;
 	private readonly childrenBuilders: HtmlBuilder[];
+	private $collapseIcon: HTMLElement | undefined;
 
 	constructor($inner: HTMLElement, children: HtmlBuilder[]) {
 		super();
@@ -21,11 +24,16 @@ export class TreeItem extends HTMLDivElement {
 			this.classList.add(className)
 		);
 
-		const $self = createDiv({ cls: "tree-item-self" });
+		// same markup as the core graph's collapsible sections
+		const $self = createDiv({ cls: "tree-item-self mod-collapsible is-clickable" });
 
 		$self.addEventListener("click", () => {
 			this.toggleCollapse();
 		});
+
+		this.$collapseIcon = $self.createDiv({ cls: "tree-item-icon collapse-icon" });
+		setIcon(this.$collapseIcon, "right-triangle");
+		this.$collapseIcon.toggleClass("is-collapsed", this.classList.contains("is-collapsed"));
 
 		const $inner = createDiv({ cls: "tree-item-inner" });
 		$inner.append(this.$inner);
@@ -44,6 +52,7 @@ export class TreeItem extends HTMLDivElement {
 			doCollapse = !this.classList.contains("is-collapsed");
 		}
 		this.classList.toggle("is-collapsed", doCollapse);
+		this.$collapseIcon?.toggleClass("is-collapsed", doCollapse);
 	};
 }
 
