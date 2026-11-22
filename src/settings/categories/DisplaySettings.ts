@@ -15,6 +15,10 @@ export class DisplaySettings {
 	particleSpeed = 4;
 	// 0 = soft glowing motes of light, 1 = solid dots in the notes' colors
 	particleSolidity = 0;
+	// notes that link to each other: how tightly each direction's stream
+	// gathers around its own anchor (0 = both share the same arcs,
+	// 1 = each keeps to its own side of the link)
+	streamCoalescence = 0.8;
 	showArrows = false;
 	// like the 2D graph: labels fade out as you zoom away; higher = visible from further
 	textFade = 0;

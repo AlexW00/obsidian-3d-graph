@@ -1116,6 +1116,7 @@ export class ForceGraph {
 		speed: 0,
 		spread: 0,
 		solidity: 0,
+		coalescence: 0,
 		additive: true,
 	};
 
@@ -1137,6 +1138,7 @@ export class ForceGraph {
 		this.moteStyle.speed = this.display.particleSpeed * 0.06;
 		this.moteStyle.spread = this.display.particleArc;
 		this.moteStyle.solidity = this.display.particleSolidity;
+		this.moteStyle.coalescence = this.display.streamCoalescence;
 		// glows add up on dark themes; solid dots should cover what's behind
 		this.moteStyle.additive = this.isDarkTheme && this.display.particleSolidity < 0.5;
 	}

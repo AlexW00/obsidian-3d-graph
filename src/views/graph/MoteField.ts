@@ -22,6 +22,9 @@ export interface MoteStyle {
 	speed: number; // fraction of the link per second
 	spread: number; // max bow, as a fraction of the link length
 	solidity: number; // 0 = soft glow, 1 = solid dot
+	// two-way links: 0 = both streams share the spindle, 1 = each stream
+	// keeps to its own side of the link
+	coalescence: number;
 	additive: boolean; // glow on dark backgrounds; normal blending on light
 }
 
@@ -83,6 +86,7 @@ interface Mote {
 	speed: number;
 	angle: number;
 	bow: number; // 0..1, scaled by spread
+	minBow: number; // least bow as a fraction of the link length, whatever the spread
 	reverse: boolean; // flows target -> source (half the lines of a two-way link)
 	size: number;
 	twinkle: number;
@@ -120,17 +124,34 @@ export class MoteField {
 			let lineCount = Math.max(1, Math.min(n, Math.round(Math.sqrt(n) * 0.9)));
 			if (mutual) lineCount = Math.min(n - (n % 2), lineCount + (lineCount % 2));
 			const turn = hash01(`${key}#turn`) * Math.PI * 2;
+			const sep = mutual ? Math.min(1, Math.max(0, style.coalescence)) : 0;
 			const lines = Array.from({ length: lineCount }, (_, l) => {
 				const r = (salt: string) => hash01(`${key}#line${l}${salt}`);
+				// alternate lines run the other way on a two-way link
+				const reverse = mutual && l % 2 === 1;
+				// spread evenly around the link, with a little jitter
+				let angle = turn + l * golden + (r("a") - 0.5) * 0.6;
+				// most lines bow a little, a few bow a lot: a spindle
+				let bow = 0.15 + 0.85 * Math.pow(r("b"), 0.8);
+				if (sep > 0) {
+					// each stream gathers around its own anchor, on opposite
+					// sides of the link: angles narrow toward the anchor and
+					// the least-bowed lines move out, off the shared axis;
+					const anchor = turn + (reverse ? Math.PI : 0);
+					const relative = Math.atan2(Math.sin(angle - anchor), Math.cos(angle - anchor));
+					// (square root: the streams stop overlapping from about halfway)
+					angle = anchor + relative * (1 - 0.8 * Math.sqrt(sep));
+					bow = bow + (1 - bow) * 0.35 * sep;
+					// and the streams loop further out, up to 2.5x the bow at 1,
+					// like two field loops on either side of the link
+					bow *= 1 + 1.5 * sep;
+				}
 				return {
-					// spread evenly around the link, with a little jitter
-					angle: turn + l * golden + (r("a") - 0.5) * 0.6,
-					// most lines bow a little, a few bow a lot: a spindle
-					bow: 0.15 + 0.85 * Math.pow(r("b"), 0.8),
+					angle,
+					bow,
 					speed: 0.8 + 0.4 * r("s"),
 					offset: r("o"),
-					// alternate lines run the other way on a two-way link
-					reverse: mutual && l % 2 === 1,
+					reverse,
 				};
 			});
 			const perLine = new Array(lineCount).fill(0);
@@ -146,6 +167,8 @@ export class MoteField {
 					speed: line.speed,
 					angle: line.angle,
 					bow: line.bow,
+					// keeps the streams apart even with a small spread
+					minBow: line.bow * sep * 0.12,
 					reverse: line.reverse,
 					size: 0.6 + 0.7 * r("z"),
 					twinkle: r("t") * Math.PI * 2,
@@ -253,7 +276,7 @@ export class MoteField {
 			// position along the arc, source (0) to target (1); color follows
 			// it, so a reversed mote starts in the target's color
 			const t = m.reverse ? 1 - progress : progress;
-			const bow = m.bow * style.spread * f.len;
+			const bow = Math.max(m.bow * style.spread, m.minBow) * f.len;
 			const cos = Math.cos(m.angle) * bow;
 			const sin = Math.sin(m.angle) * bow;
 			// control point: the midpoint pushed out around the link

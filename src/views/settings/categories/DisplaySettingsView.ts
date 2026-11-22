@@ -11,6 +11,7 @@ type NumberKey =
 	| "particleSpeed"
 	| "particleArc"
 	| "particleSolidity"
+	| "streamCoalescence"
 	| "textFade";
 
 const DisplaySettingsView = (
@@ -53,6 +54,7 @@ const DisplaySettingsView = (
 	slider("Particle speed", "particleSpeed", 1, 10, 0.5);
 	slider("Particle spread", "particleArc", 0, 1, 0.05);
 	slider("Particle solidity", "particleSolidity", 0, 1, 0.05);
+	slider("Stream coalescence", "streamCoalescence", 0, 1, 0.05);
 
 	if (onAnimate) {
 		const buttonContainer = containerEl.createDiv({ cls: "graph-control-animate" });
