@@ -45,6 +45,8 @@ declare module "three" {
 		constructor(array: Float32Array, itemSize: number);
 		array: Float32Array;
 		needsUpdate: boolean;
+		// the part of the array to upload on the next render; reset afterwards
+		updateRange: { offset: number; count: number };
 		setUsage(usage: number): this;
 	}
 	export class BufferGeometry {
