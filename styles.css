@@ -133,3 +133,40 @@
 .graph-3d-view .setting-item.mod-search-setting .search-input-container {
 	width: 100%;
 }
+
+/* nodes hidden / links broken in the 3D graph, restorable */
+.graph-3d-view .graph-3d-hidden-list:not(:empty) {
+	margin-top: var(--size-4-2);
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.graph-3d-view .graph-3d-hidden-title {
+	margin-bottom: var(--size-4-1);
+}
+
+.graph-3d-view .graph-3d-hidden-item {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.graph-3d-view .graph-3d-hidden-icon {
+	width: 1em;
+	text-align: center;
+	color: var(--text-faint);
+}
+
+.graph-3d-view .graph-3d-hidden-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.graph-3d-view .graph-3d-hidden-restore button {
+	width: 100%;
+	margin-top: var(--size-4-2);
+}
