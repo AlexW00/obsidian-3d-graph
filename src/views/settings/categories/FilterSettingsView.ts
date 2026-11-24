@@ -67,7 +67,8 @@ const FilterSettingsView = (
 
 	setOwnFiltersEnabled(!filterSettings.value.matchCoreGraph);
 
-	HiddenList(filterSettings, containerEl.createDiv({ cls: "graph-3d-hidden-list" }));
+	// the settings view runs this cleanup when it is rebuilt or closed
+	return HiddenList(filterSettings, containerEl.createDiv({ cls: "graph-3d-hidden-list" }));
 };
 
 // a node id or link key, as a readable name

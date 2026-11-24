@@ -99,6 +99,8 @@ export class MoteField {
 	private material: THREE.ShaderMaterial | null = null;
 	private links: Link[] = [];
 	private motes: Mote[] = [];
+	// each link's motes are contiguous: motes[linkStart[i] .. linkStart[i + 1])
+	private linkStart: number[] = [0];
 	private capacity = 0;
 	private time = 0;
 	private cleared = false; // every mote was hidden on the last frame
@@ -112,11 +114,15 @@ export class MoteField {
 	public setLinks(links: Link[], style: MoteStyle) {
 		this.links = links;
 		this.motes = [];
+		this.linkStart = [0];
 		const golden = Math.PI * (3 - Math.sqrt(5));
 		links.forEach((link, index) => {
 			const key = `${endId(link.source as Endpoint)}|${endId(link.target as Endpoint)}`;
 			const n = Math.max(0, Math.round(style.count(link)));
-			if (n === 0) return;
+			if (n === 0) {
+				this.linkStart.push(this.motes.length);
+				return;
+			}
 			// a few field lines per link; motes are shared out between them.
 			// Notes that link to each other get lines flowing both ways, so a
 			// two-way link needs an even number of lines, half each way.
@@ -174,10 +180,12 @@ export class MoteField {
 					twinkle: r("t") * Math.PI * 2,
 				});
 			}
+			this.linkStart.push(this.motes.length);
 		});
 		this.cleared = false;
 		this.ensureCapacity(this.motes.length, style);
-		this.geometry?.setDrawRange(0, this.motes.length);
+		// update() fills the buffers and draw range with the visible motes
+		this.geometry?.setDrawRange(0, 0);
 	}
 
 	private ensureCapacity(n: number, style: MoteStyle) {
@@ -261,17 +269,16 @@ export class MoteField {
 			anyVisible = true;
 			return { a, b, len, v, w, from: this.color(from), to: this.color(to), bright };
 		});
-		// all hidden, and already cleared last frame: nothing to upload
+		// all hidden, and already cleared last frame: nothing to do
 		if (!anyVisible && this.cleared) return;
 		this.cleared = !anyVisible;
 
-		this.motes.forEach((m, i) => {
-			const f = frames[m.link];
+		// only the visible links' motes are written, packed at the start of
+		// the buffers, and only those are uploaded and drawn: hovering one
+		// link in lines mode costs that link's motes, not the whole vault's
+		let i = 0;
+		const write = (m: Mote, f: NonNullable<(typeof frames)[number]>) => {
 			const o = i * 3;
-			if (!f || f.bright <= 0) {
-				alpha[i] = 0;
-				return;
-			}
 			const progress = (((m.phase + this.time * style.speed * m.speed) % 1) + 1) % 1;
 			// position along the arc, source (0) to target (1); color follows
 			// it, so a reversed mote starts in the target's color
@@ -301,12 +308,32 @@ export class MoteField {
 			const twinkle = 1 - 0.25 * (1 - style.solidity) * (1 - Math.sin(this.time * 3 + m.twinkle));
 			alpha[i] = Math.sin(Math.PI * t) * twinkle * f.bright;
 			size[i] = style.size * m.size;
+			i++;
+		};
+		frames.forEach((f, link) => {
+			if (!f) return;
+			for (let m = this.linkStart[link]; m < this.linkStart[link + 1]; m++)
+				write(this.motes[m], f);
 		});
 
-		this.geometry.attributes.position.needsUpdate = true;
-		this.geometry.attributes.aColor.needsUpdate = true;
-		this.geometry.attributes.aAlpha.needsUpdate = true;
-		this.geometry.attributes.aSize.needsUpdate = true;
+		this.geometry.setDrawRange(0, i);
+		// an empty range would upload the whole buffer (WebGL2 reads a zero
+		// length as "to the end"), and nothing is drawn anyway
+		if (i === 0) return;
+		const attributes = this.geometry.attributes;
+		(
+			[
+				["position", 3],
+				["aColor", 3],
+				["aAlpha", 1],
+				["aSize", 1],
+			] as const
+		).forEach(([name, itemSize]) => {
+			const attribute = attributes[name];
+			attribute.updateRange.offset = 0;
+			attribute.updateRange.count = i * itemSize;
+			attribute.needsUpdate = true;
+		});
 	}
 
 	// forget cached colors (theme or cluster colors changed)
@@ -328,5 +355,6 @@ export class MoteField {
 		this.disposeObjects();
 		this.links = [];
 		this.motes = [];
+		this.linkStart = [0];
 	}
 }
