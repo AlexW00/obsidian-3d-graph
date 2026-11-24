@@ -268,9 +268,17 @@ export class ForceGraph {
 	// the view's shape, this measures the graph as the camera sees it, so the
 	// graph fills the screen.
 	private fitCamera(ms: number, include: (node: Node) => boolean = () => true) {
-		const nodes = (this.instance.graphData().nodes as Positioned[]).filter(
-			(n) => n.x !== undefined && include(n)
+		// during the load bounce the nodes are pinned to a shrunken copy of the
+		// layout; fit the settled layout the bounce grows into
+		const settled = new Map<Node, { x: number; y: number; z: number }>(
+			(this.bounce?.nodes ?? []).map((b) => [b.node, b])
 		);
+		const nodes = (this.instance.graphData().nodes as Positioned[])
+			.filter((n) => n.x !== undefined && include(n))
+			.map((n) => {
+				const at = settled.get(n);
+				return at ? { node: n, x: at.x, y: at.y, z: at.z } : { node: n, x: n.x, y: n.y, z: n.z };
+			});
 		const { offsetWidth: width, offsetHeight: height } = this.rootHtmlElement;
 		if (nodes.length === 0 || !width || !height) return;
 
@@ -285,22 +293,33 @@ export class ForceGraph {
 		);
 		const c = lo.map((v, k) => (v + hi[k]) / 2);
 
-		// the camera's axes: back (center -> camera), right and up
+		// the camera's axes once it looks at the center: back (center ->
+		// camera), right and up, derived from camera.up as camera.lookAt does
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const camera = this.instance.camera() as any;
 		const pos = camera.position;
-		let back = [pos.x - c[0], pos.y - c[1], pos.z - c[2]];
-		const bl = Math.hypot(back[0], back[1], back[2]);
-		back = bl > 1e-6 ? back.map((v) => v / bl) : [0, 0, 1];
-		const worldUp = Math.abs(back[1]) > 0.99 ? [0, 0, 1] : [0, 1, 0];
+		const normalize = (a: number[]) => {
+			const l = Math.hypot(a[0], a[1], a[2]);
+			return l > 0 ? a.map((v) => v / l) : a;
+		};
 		const cross = (a: number[], b: number[]) => [
 			a[1] * b[2] - a[2] * b[1],
 			a[2] * b[0] - a[0] * b[2],
 			a[0] * b[1] - a[1] * b[0],
 		];
-		let right = cross(worldUp, back);
-		const rl = Math.hypot(right[0], right[1], right[2]) || 1;
-		right = right.map((v) => v / rl);
+		let back = [pos.x - c[0], pos.y - c[1], pos.z - c[2]];
+		back = Math.hypot(back[0], back[1], back[2]) > 1e-6 ? normalize(back) : [0, 0, 1];
+		const camUp = normalize(camera.up ? [camera.up.x, camera.up.y, camera.up.z] : [0, 1, 0]);
+		let right = cross(camUp, back);
+		if (Math.hypot(right[0], right[1], right[2]) < 1e-9) {
+			// looking straight along camera.up: nudge the view as
+			// Matrix4.lookAt does, so the fit matches the camera's orientation
+			const nudged = back.slice();
+			if (Math.abs(camUp[2]) === 1) nudged[0] += 0.0001;
+			else nudged[2] += 0.0001;
+			right = cross(camUp, normalize(nudged));
+		}
+		right = normalize(right);
 		const up = cross(back, right);
 		const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
@@ -317,7 +336,7 @@ export class ForceGraph {
 		let distance = 0;
 		nodes.forEach((n) => {
 			const q = [(n.x ?? 0) - c[0], (n.y ?? 0) - c[1], (n.z ?? 0) - c[2]];
-			const r = this.nodeRadius(n) * 1.3;
+			const r = this.nodeRadius(n.node) * 1.3;
 			const depth = dot(q, back);
 			distance = Math.max(
 				distance,
