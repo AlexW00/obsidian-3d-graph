@@ -1,4 +1,5 @@
-import { ButtonComponent, ExtraButtonComponent, TextComponent } from "obsidian";
+import { ButtonComponent, ExtraButtonComponent, Setting, TextComponent } from "obsidian";
+import SimpleSliderSetting from "src/views/atomics/SimpleSliderSetting";
 import {
 	GroupSettings,
 	NodeGroup,
@@ -12,6 +13,7 @@ const GroupSettingsView = (
 	containerEl: HTMLElement,
 	theme: ObsidianTheme
 ) => {
+	ClusterSettings(groupSettings, containerEl.createDiv());
 	const groupsEl = containerEl.createDiv();
 	const render = () => {
 		groupsEl.empty();
@@ -28,6 +30,43 @@ const GroupSettingsView = (
 		)
 			render();
 	});
+};
+
+// Automatic coloring by detected cluster
+const ClusterSettings = (groupSettings: State<GroupSettings>, containerEl: HTMLElement) => {
+	new Setting(containerEl)
+		.setName("Color by cluster")
+		.addToggle((toggle) =>
+			toggle.setValue(groupSettings.value.colorByCluster).onChange((value) => {
+				groupSettings.value.colorByCluster = value;
+			})
+		)
+		.nameEl.setAttr(
+			"aria-label",
+			"Detects groups of closely linked notes and gives each a color"
+		);
+	SimpleSliderSetting(
+		containerEl,
+		{
+			name: "Group count",
+			value: groupSettings.value.clusterCount,
+			stepOptions: { min: 2, max: 12, step: 1 },
+		},
+		(value) => {
+			groupSettings.value.clusterCount = value;
+		}
+	);
+	SimpleSliderSetting(
+		containerEl,
+		{
+			name: "Cluster pull",
+			value: groupSettings.value.clusterPull,
+			stepOptions: { min: 0, max: 1, step: 0.05 },
+		},
+		(value) => {
+			groupSettings.value.clusterPull = value;
+		}
+	);
 };
 
 const NodeGroups = (
