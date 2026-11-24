@@ -118,6 +118,9 @@ export const clusterColor = (n: number): string =>
 // that adds the most modularity) until `count` remain. Nodes with no edges
 // stay on their own; clusters with no edges between them can't be merged, so
 // the result can have fewer merges than asked for.
+// merges left when clusterInto switches from batched rounds to one at a time
+const EXACT_MERGES = 64;
+
 export const clusterInto = (
 	nodeIds: string[],
 	edges: [string, string, number?][],
@@ -162,22 +165,13 @@ export const clusterInto = (
 
 	const alive = new Set(total.keys());
 	const mergedInto = new Map<number, number>();
-	while (alive.size > count) {
-		let best: [number, number] | null = null;
-		let bestGain = -Infinity;
-		alive.forEach((a) =>
-			between.get(a)?.forEach((w, b) => {
-				if (b <= a || !alive.has(b)) return;
-				const gain = w / twoM - ((total.get(a) ?? 0) * (total.get(b) ?? 0)) / (twoM * twoM);
-				if (gain > bestGain) {
-					bestGain = gain;
-					best = [a, b];
-				}
-			})
-		);
-		if (!best) break; // the rest have no edges between them
-		const [keep, gone] = best as [number, number];
-		// fold `gone` into `keep`
+	const gainOf = (a: number, b: number, w: number) =>
+		w / twoM - ((total.get(a) ?? 0) * (total.get(b) ?? 0)) / (twoM * twoM);
+	// fold the cluster with fewer neighbors into the other, so a hub that
+	// absorbs many small clusters isn't copied each time
+	const merge = (a: number, b: number) => {
+		const [keep, gone] =
+			(between.get(a)?.size ?? 0) >= (between.get(b)?.size ?? 0) ? [a, b] : [b, a];
 		between.get(gone)?.forEach((w, other) => {
 			if (other === keep) return;
 			add(keep, other, w);
@@ -189,6 +183,31 @@ export const clusterInto = (
 		total.set(keep, (total.get(keep) ?? 0) + (total.get(gone) ?? 0));
 		alive.delete(gone);
 		mergedInto.set(gone, keep);
+	};
+
+	// Greedy merging, best pair first. Rescoring every pair after each merge is
+	// quadratic when many small clusters hang off one hub (a tag on thousands
+	// of notes), so while many merges remain, each round scores the pairs once
+	// and makes half of the merges still needed. The last EXACT_MERGES, which
+	// shape the big clusters, are made one at a time, each scored afresh.
+	while (alive.size > count) {
+		const pairs: [number, number, number][] = [];
+		alive.forEach((a) =>
+			between.get(a)?.forEach((w, b) => {
+				if (b > a && alive.has(b)) pairs.push([gainOf(a, b, w), a, b]);
+			})
+		);
+		if (pairs.length === 0) break; // the rest have no edges between them
+		pairs.sort((x, y) => y[0] - x[0] || x[1] - y[1] || x[2] - y[2]);
+		const excess = alive.size - count;
+		let budget = excess <= EXACT_MERGES ? 1 : Math.ceil(excess / 2);
+		for (const [, a, b] of pairs) {
+			if (budget === 0) break;
+			// a pair can go stale when one side was merged away this round
+			if (!alive.has(a) || !alive.has(b)) continue;
+			merge(a, b);
+			budget--;
+		}
 	}
 
 	const resolve = (c: number): number => {
